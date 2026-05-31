@@ -1,0 +1,276 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base: #1E1814;
+  --bg-surface: #2A231E;
+  --bg-surface-elevated: #352C26;
+  --bg-sidebar: #16100C;
+  --accent-primary: #FF7A45;
+  --accent-primary-hover: #FF9C6E;
+  --accent-primary-active: #E8663A;
+  --accent-secondary: #36CFC9;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.55);
+  --text-inverse: #1E1814;
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-active: rgba(255, 255, 255, 0.20);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.40);
+  --shadow-glow: 0 0 16px rgba(255, 122, 69, 0.20);
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+  --space-4xl: 48px;
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-sidebar: 40;
+  --z-player: 50;
+  --z-modal-overlay: 100;
+  --z-modal: 110;
+  --z-drawer: 120;
+  --z-toast: 200;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+
+  a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  a:hover {
+    color: var(--accent-primary-hover);
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@layer components {
+  .gradient-hero {
+    background: linear-gradient(135deg, rgba(255, 156, 110, 0.92) 0%, rgba(54, 207, 201, 0.75) 100%);
+  }
+
+  .gradient-card-blue {
+    background: linear-gradient(135deg, #1A2A3A, #0F1E2E);
+  }
+
+  .gradient-card-slate {
+    background: linear-gradient(135deg, #2A2D35, #1A1D24);
+  }
+
+  .gradient-card-indigo {
+    background: linear-gradient(135deg, #1E2240, #12162E);
+  }
+
+  .gradient-card-gray {
+    background: linear-gradient(135deg, #2E2824, #1E1814);
+  }
+
+  .gradient-user-card {
+    background: linear-gradient(135deg, #FF9C6E 0%, #36CFC9 100%);
+  }
+
+  .horizontal-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .horizontal-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .horizontal-scroll > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  .card-hover {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-active);
+  }
+
+  .list-hover {
+    transition: background-color 0.15s ease;
+  }
+
+  .list-hover:hover {
+    background: var(--bg-surface-elevated);
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-surface-elevated) 50%, var(--bg-surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .shownotes-content p {
+    margin-bottom: 8px;
+  }
+
+  .shownotes-content a {
+    color: #FF7A45;
+  }
+
+  .shownotes-content a:hover {
+    color: #FF9C6E;
+  }
+
+  .shownotes-content h1,
+  .shownotes-content h2,
+  .shownotes-content h3,
+  .shownotes-content h4 {
+    margin-top: 16px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+
+  .shownotes-content img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 8px 0;
+  }
+
+  .shownotes-content blockquote {
+    border-left: 3px solid rgba(255,255,255,0.20);
+    padding-left: 12px;
+    margin: 8px 0;
+    color: rgba(255,255,255,0.55);
+  }
+
+  .shownotes-content ul,
+  .shownotes-content ol {
+    padding-left: 20px;
+    margin: 8px 0;
+  }
+
+  .shownotes-content pre {
+    background: #352C26;
+    border-radius: 8px;
+    padding: 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+
+  .shownotes-content code {
+    background: #352C26;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 13px;
+  }
+
+  .shownotes-content pre code {
+    padding: 0;
+    background: none;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-surface-elevated) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--bg-surface-elevated);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
+  }
+
+  .bg-base { background-color: var(--bg-base); }
+  .bg-surface { background-color: var(--bg-surface); }
+  .bg-surface-elevated { background-color: var(--bg-surface-elevated); }
+  .bg-sidebar { background-color: var(--bg-sidebar); }
+
+  .text-primary { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-tertiary { color: var(--text-tertiary); }
+
+  .border-subtle { border-color: var(--border-subtle); }
+  .border-active { border-color: var(--border-active); }
+}

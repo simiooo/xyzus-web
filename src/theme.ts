@@ -1,0 +1,151 @@
+import type { ThemeConfig } from 'antd'
+
+const theme: ThemeConfig = {
+  token: {
+    colorPrimary: '#FF7A45',
+    colorInfo: '#FF7A45',
+    colorSuccess: '#73D13D',
+    colorWarning: '#FFC53D',
+    colorError: '#FF4D4F',
+    colorBgLayout: '#1E1814',
+    colorBgContainer: '#2A231E',
+    colorBgElevated: '#352C26',
+    colorBgSpotlight: '#352C26',
+    colorBorder: 'rgba(255,255,255,0.10)',
+    colorBorderSecondary: 'rgba(255,255,255,0.06)',
+    colorText: '#FFFFFF',
+    colorTextSecondary: 'rgba(255,255,255,0.65)',
+    colorTextTertiary: 'rgba(255,255,255,0.55)',
+    colorTextQuaternary: 'rgba(255,255,255,0.30)',
+    colorWhite: '#FFFFFF',
+    colorBgMask: 'rgba(0,0,0,0.70)',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontSize: 14,
+    fontSizeHeading1: 24,
+    fontSizeHeading2: 20,
+    fontSizeHeading3: 16,
+    lineHeight: 1.5,
+    borderRadius: 10,
+    borderRadiusLG: 14,
+    borderRadiusSM: 6,
+    controlHeight: 40,
+    controlHeightLG: 48,
+    controlHeightSM: 32,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.30)',
+    boxShadowSecondary: '0 4px 12px rgba(0,0,0,0.35)',
+    wireframe: false,
+    motionDurationMid: '0.2s',
+  },
+  components: {
+    Card: {
+      colorBgContainer: '#2A231E',
+      borderRadiusLG: 14,
+      paddingLG: 16,
+      padding: 16,
+      boxShadowTertiary: '0 1px 2px rgba(0,0,0,0.20)',
+    },
+    Button: {
+      borderRadius: 10,
+      controlHeight: 40,
+      controlHeightLG: 48,
+      controlHeightSM: 32,
+      primaryShadow: '0 0 16px rgba(255,122,69,0.20)',
+    },
+    Input: {
+      colorBgContainer: '#2A231E',
+      colorBorder: 'rgba(255,255,255,0.10)',
+      activeBorderColor: '#FF7A45',
+      hoverBorderColor: 'rgba(255,255,255,0.20)',
+      activeShadow: '0 0 0 2px rgba(255,122,69,0.35)',
+      borderRadius: 10,
+      paddingInline: 12,
+    },
+    Select: {
+      colorBgContainer: '#2A231E',
+      colorBorder: 'rgba(255,255,255,0.10)',
+      optionSelectedBg: 'rgba(255,122,69,0.15)',
+      optionActiveBg: '#352C26',
+      borderRadius: 10,
+    },
+    Slider: {
+      colorPrimary: '#FF7A45',
+      colorFillTertiary: 'rgba(255,255,255,0.10)',
+      railSize: 4,
+      handleSize: 12,
+      handleLineWidth: 2,
+    },
+    Tabs: {
+      colorBgContainer: 'transparent',
+      inkBarColor: '#FF7A45',
+      itemSelectedColor: '#FFFFFF',
+      itemColor: 'rgba(255,255,255,0.55)',
+      itemHoverColor: 'rgba(255,255,255,0.65)',
+      borderRadius: 10,
+    },
+    Modal: {
+      colorBgContainer: '#2A231E',
+      borderRadiusLG: 24,
+      boxShadowSecondary: '0 8px 24px rgba(0,0,0,0.40)',
+    },
+    Dropdown: {
+      colorBgElevated: '#352C26',
+      borderRadius: 10,
+      controlItemBgActive: 'rgba(255,122,69,0.15)',
+      controlItemBgHover: '#2A231E',
+    },
+    Tag: {
+      borderRadius: 9999,
+      colorBgContainer: '#352C26',
+      colorText: 'rgba(255,255,255,0.65)',
+    },
+    Skeleton: {
+      gradientFromColor: '#2A231E',
+      gradientToColor: '#352C26',
+      borderRadius: 10,
+    },
+    Spin: {
+      colorPrimary: '#FF7A45',
+    },
+    Divider: {
+      colorSplit: 'rgba(255,255,255,0.06)',
+    },
+    Avatar: {
+      colorBgContainer: '#352C26',
+      borderRadius: 9999,
+    },
+    Image: {
+      borderRadius: 10,
+    },
+    Breadcrumb: {
+      itemColor: 'rgba(255,255,255,0.55)',
+      lastItemColor: '#FFFFFF',
+      linkColor: 'rgba(255,255,255,0.55)',
+      separatorColor: 'rgba(255,255,255,0.30)',
+    },
+    Badge: {
+      colorBgContainer: '#FF7A45',
+    },
+    Progress: {
+      colorPrimary: '#FF7A45',
+      defaultColor: '#FF7A45',
+      remainingColor: 'rgba(255,255,255,0.10)',
+    },
+    List: {
+      colorBgContainer: 'transparent',
+      colorSplit: 'rgba(255,255,255,0.06)',
+    },
+    Tooltip: {
+      colorBgSpotlight: '#352C26',
+    },
+    Notification: {
+      colorBgElevated: '#352C26',
+      borderRadiusLG: 14,
+    },
+    Message: {
+      colorBgElevated: '#352C26',
+      borderRadiusLG: 14,
+    },
+  },
+}
+
+export default theme

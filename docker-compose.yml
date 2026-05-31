@@ -1,0 +1,22 @@
+services:
+  backend:
+    image: ultrazg/xyz:v1.4.2
+    expose:
+      - 8080
+    restart: unless-stopped
+    networks:
+      - xyz-network
+
+  frontend:
+    build: .
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - xyz-network
+
+networks:
+  xyz-network:
+    driver: bridge

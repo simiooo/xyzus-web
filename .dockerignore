@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+*.md
+.env
+.env.development
+.env.example
+.gitignore
+.dockerignore
+PRD.md
+AGENTS.md

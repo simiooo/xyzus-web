@@ -2,6 +2,8 @@ FROM golang:tip-alpine3.23 AS builder
 
 RUN apk add --no-cache git
 
+ENV GOPROXY=https://goproxy.cn/
+
 WORKDIR /src
 RUN git clone https://github.com/ultrazg/xyz.git .
 RUN go mod tidy

@@ -1,14 +1,18 @@
 services:
   backend:
-    image: ultrazg/xyz:v1.4.2
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
     expose:
-      - 8080
+      - 23020
     restart: unless-stopped
     networks:
       - xyz-network
 
   frontend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:80"
     depends_on:

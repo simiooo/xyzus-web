@@ -1,9 +1,11 @@
 FROM node:22-alpine AS builder
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+RUN corepack enable pnpm && corepack prepare pnpm@10.33.0 --activate
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm config set registry https://registry.npmmirror.com
 RUN pnpm install --frozen-lockfile
 
 COPY . .

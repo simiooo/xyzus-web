@@ -2,17 +2,32 @@
 
 基于 React 19 + TypeScript 6 + Vite 8 的播客播放器 Web 客户端，使用 Ant Design 6 + Tailwind CSS 3 构建 UI。
 
-## 技术栈
+## 快速部署（推荐小白使用）
 
-| 层 | 技术 |
-|---|---|
-| 框架 | React 19、TypeScript 6 |
-| 构建 | Vite 8、React Compiler |
-| UI | Ant Design 6、Tailwind CSS 3、@ant-design/icons |
-| 状态 | Zustand 5 |
-| 路由 | React Router 7 |
-| API | Alova 3（全部 POST 请求） |
-| 服务端 | Nginx |
+只需安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)，然后一键启动：
+
+```bash
+git clone https://github.com/你的用户名/xyz-web.git
+cd xyz-web
+docker compose up -d
+```
+
+启动完成后，浏览器访问 **http://localhost:8080/** 即可使用。
+
+> 首次构建需要下载依赖，可能需要几分钟，请耐心等待。
+
+常用命令：
+
+```bash
+# 查看运行状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f
+
+# 停止服务
+docker compose down
+```
 
 ## 本地开发
 
@@ -32,32 +47,28 @@ pnpm build
 
 开发服务器需配合后端服务运行，后端地址配置在 `.env` 的 `VITE_API_BASE_URL`。
 
-## Docker 部署
+## 技术栈
 
-项目提供 Docker Compose 一键部署。
+| 层 | 技术 |
+|---|---|
+| 框架 | React 19、TypeScript 6 |
+| 构建 | Vite 8、React Compiler |
+| UI | Ant Design 6、Tailwind CSS 3、@ant-design/icons |
+| 状态 | Zustand 5 |
+| 路由 | React Router 7 |
+| API | Alova 3（全部 POST 请求） |
 
-```bash
-# 构建并启动
-docker compose up -d
-
-# 查看日志
-docker compose logs -f
-
-# 停止
-docker compose down
-```
-
-### 架构
+## Docker 架构
 
 ```
-宿主机 :8080
-  └── frontend (Nginx)
-        ├── / → 静态文件 (SPA)
-        └── /api/* → 反向代理 → backend (Go Gin, 8080)
+浏览器 → http://localhost:8080
+           └── frontend (Nginx)
+                 ├── / → 静态文件 (SPA)
+                 └── /api/* → 反向代理 → backend:23020 (Go)
 ```
 
 - **frontend**：Nginx 提供前端静态文件，`/api/` 路径反向代理到后端
-- **backend**：直接使用镜像 `ultrazg/xyz:v1.4.2`，内部访问不对外暴露
+- **backend**：从源码构建 Go 二进制，监听 23020 端口，不对外暴露
 
 ## 环境变量
 

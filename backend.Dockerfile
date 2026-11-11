@@ -20,7 +20,8 @@ WORKDIR /src
 RUN git clone "${XYZ_REPO}" . \
  && git checkout "${XYZ_REF}"
 
-# 本地补丁：通知 / 首页 tab / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步等 21 条代理端点。
+# 本地补丁：通知 / 首页 tab / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步 /
+# 最近收听增量同步（list-for-cache）等 22 条代理端点。
 # 补丁由 backend-patches/notification-endpoints.patch 维护，钉住上游 commit 后再 apply，
 # 这样既能复现构建，又不用 fork 仓库。
 COPY backend-patches/ /tmp/backend-patches/

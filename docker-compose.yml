@@ -1,4 +1,6 @@
 services:
+  # 后端：钉住上游 xyz commit，构建时 apply backend-patches/ 的 22 条代理端点补丁
+  # （含最近收听增量同步 /episode_played_list_for_cache），见 backend.Dockerfile。
   backend:
     build:
       context: .

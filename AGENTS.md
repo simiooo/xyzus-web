@@ -81,8 +81,9 @@ No test suite, no formatter config, no CI, no pre-commit hooks.
 - **本地缓存 / 写队列**: Dexie 4 + IndexedDB（`src/db/`，库 `xyz-web-db`，按 uid 隔离）：
   Phase 1 对单集/节目详情、首页 feed、订阅列表做实体/页面缓存 + stale-while-revalidate（TTL 见 `src/db/cache.ts`）；
   Phase 2 用 outbox（`src/db/outbox.ts`）承接播放进度/星标/订阅写入，同 key 合并最新、700ms 调度、15s 兜底、
-  失败指数退避；`useLocalSync` 负责启动清理与自动 flush。缓存是加速层，写成功仍以服务端为准。
-- **后端补丁**: 以上通知 / 首页 / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步共 21 条代理路由都在
-  `backend-patches/notification-endpoints.patch`（16393 B），`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply。
+  失败指数退避；`useLocalSync` 负责启动清理与自动 flush。增量同步（`src/db/sync.ts` + `playedCache` 表，DB v2）
+  对齐 App `list-for-cache` 版本游标：`needRefresh` 才整体替换最近收听本地库并推进 `syncMeta` 游标；登出经 `clearAccountCache` 整号清理。缓存是加速层，写成功仍以服务端为准。
+- **后端补丁**: 以上通知 / 首页 / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步 / 最近收听增量同步共 22 条代理路由都在
+  `backend-patches/notification-endpoints.patch`（18145 B，含 `handlers/playback.go`），`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply。
 - **Env**: `VITE_API_BASE_URL`（`.env` / `.env.development` / `.env.production`），
   `VITE_API_MOCK=1` 启用离线 mock。

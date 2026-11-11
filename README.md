@@ -207,6 +207,7 @@ docker compose up -d --build    # 前端 http://localhost:8080/ ，/api 反代�
 | `/playback_progress_list` | `{eids:[...]}` | xyz 补丁代理上游 `/v1/playback-progress/list` | `{eid,pid,progress,playedAt}[]` | 真实 token → **200**（跨端续听恢复） |
 | `/playback_progress_update` | `{data:[{eid,pid,playedAt,progress}]}` | xyz 补丁代理上游 `/v1/playback-progress/update` | `{}` | 真实 token → **200**（写完 list 可见；旧 `playedAt` 被服务端拒绝） |
 | `/episode_played_create` | `{eid}` | xyz 补丁代理上游 `/v1/episode-played/create` | `{}` | 真实 token → **200** |
+| `/episode_played_list_for_cache` | `{version?, loadMoreKey?}` | xyz 补丁代理上游 `/v1/episode-played/list-for-cache` | `{data: PlayedHistory[], version, needRefresh, loadMoreKey?}` | mock 浏览器实测（增量同步，见 §21）；真实上游待测 |
 | `/episode_played_history_list` | `{}` | xyz 内置代理上游 `/v1/episode-played/list-history` | `[{episode,recentAudiences}]` | 真实 token → **200** |
 | `/notice_list` | `{loadMoreKey?}` | xyz 补丁代理上游 `/v1/notice/list`（请求头模板同 notice.go） | `{items: Notice[], loadMoreKey?}`（静态合同，待抓包校准） | 无 token → 400；假 token → **401**（上游日志 `/v1/notice/list`） |
 | `/inbox_remove` | `{eids: string[]}` | xyz 补丁代理上游 `/v1/inbox/remove` | 无（UI 暂未接） | 无 token → 400；假 token → **401** |
@@ -214,7 +215,8 @@ docker compose up -d --build    # 前端 http://localhost:8080/ ，/api 反代�
 | `/system_notice_unread` | `{}` | xyz 补丁代理上游 `/api/systemNotice/unread/get` | 无（UI 暂未接） | 假 token → **401** |
 | `/pick_list_recent` | `{uid}` | body `{uid}`；上游 `/v1/pick/list-recent` | `PickRecentItem[]` | 旧路由 `/pick_recent` → **HTTP 404 (`D`)**；新路由 + 假 token → **401** (`B`) |
 
-共 56 个客户端实际使用的端点，**全部**用真实 HTTP 打过路由/参数绑定（A/B/C/D 共 89 次探测，见 §9 证据）。
+共 57 个客户端实际使用的端点；其中 56 个用真实 HTTP 打过路由/参数绑定（A/B/C/D 共 89 次探测，见 §9 证据），
+新增的 `/episode_played_list_for_cache` 经 mock 浏览器实测（真实上游待测，见 §21）。
 
 ### 4.3 修复的三个硬错误（修复前 → 修复后）
 
@@ -493,7 +495,7 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
 | dev server 被 `EBUSY: resource busy or locked, watch …tmpdir` 杀掉 | 已由 `vite.config.ts` 的 `server.watch.ignored`（`**/*.tmpdir/**`、`**/*.tmp`、`shots/` 等）修复；如仍出现请补充忽略规则 |
 | 付费单集点播放没声音 | 见 §6：需在小宇宙 App 购买；`resolveEpisodeAudioUrl` 会返回 `reason` 供 UI 提示 |
 | 消息页「通知」显示「通知加载失败，请稍后重试」 | 本机 `xyz.exe` 还是旧版（没有 `/notice_list`）。用 `backend.Dockerfile` 或「干净 clone + `git apply backend-patches/notification-endpoints.patch` + `go build`」重启后端 |
-| 首页 tab / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步接口 404 | 同上：后端没打 21 条补丁。重新构建并重启后端；`/tab_*`、`/related_episode_list`、`/inbox_list_v2`、`/comment_list_*`、`/ai_summary_*`、`/episode_transcript_*`、`/following_updates_list`、`/subscription_often_played`、`/playback_progress_*`、`/episode_played_create` 由补丁提供 |
+| 首页 tab / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步 / 最近收听增量同步接口 404 | 同上：后端没打 22 条补丁。重新构建并重启后端；`/tab_*`、`/related_episode_list`、`/inbox_list_v2`、`/comment_list_*`、`/ai_summary_*`、`/episode_transcript_*`、`/following_updates_list`、`/subscription_often_played`、`/playback_progress_*`、`/episode_played_create`、`/episode_played_list_for_cache` 由补丁提供 |
 
 ---
 
@@ -528,8 +530,8 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
 - **未读徽标**：`src/components/shell/UnreadBadge.tsx` + `src/stores/notificationStore.ts`；
   `Layout` 里的 `useUnreadCount` 在登录后取一次，之后窗口聚焦 / 切回标签页 / 每 2 分钟刷新。
   打开消息页即把当前未读数记为本机已看，徽标隐藏；服务端数字之后的增长会重新亮起。
-- **后端补丁**：`backend-patches/notification-endpoints.patch`（21 条代理路由，16393 B）覆盖通知 + 首页 tab +
-  相关单集 + 收件箱 v2 + 评论增强 + AI 摘要/文字稿 + 关注动态/常听节目 + 播放状态同步；`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply，
+- **后端补丁**：`backend-patches/notification-endpoints.patch`（22 条代理路由，18145 B）覆盖通知 + 首页 tab +
+  相关单集 + 收件箱 v2 + 评论增强 + AI 摘要/文字稿 + 关注动态/常听节目 + 播放状态同步 + 最近收听增量同步；`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply，
   干净 worktree 正向 `git apply` + `go build` 验证通过；端点用假 token 探测返回 401（见 §9）。
 - **Mock**：`notice_list` 14 条 / 6 条/页（真实形状转换 + 旧结构容错样本）、`inbox_list_v2` 6 条/页、
   `inbox_remove` 返回 null、`unread_count` 固定 3；`VITE_API_MOCK=1 pnpm dev` 可完整验收双 tab、分页、已读按钮与徽标。
@@ -700,25 +702,59 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
 
 ---
 
-## 20. 本地缓存与写队列（2026-11，Phase 1 + Phase 2）
+## 20. 本地缓存与写队列（2026-11，Phase 1 + Phase 2 + 增量同步）
 
-- **存储**：Dexie 4（`dexie` 依赖）+ IndexedDB，库名 `xyz-web-db`；按账号 uid 前缀隔离，
-  不缓存 token / 音频 / 图片二进制；`clearAccountCache(uid)` 可整号清理。
+- **存储**：Dexie 4（`dexie` 依赖）+ IndexedDB，库名 `xyz-web-db`（当前 schema v2）；按账号 uid 前缀隔离，
+  不缓存 token / 音频 / 图片二进制；`clearAccountCache(uid)` 可整号清理（已接 `authStore.logout` 与登录失效两条路径）。
 - **Phase 1：实体 / 页面缓存 + SWR**（`src/db/schema.ts`、`src/db/cache.ts`）：
   - `entities`：单集详情（`episode`）、节目详情+相关节目（`podcastBundle`）；
   - `pages`：首页三个 feed tab（`homeFeed`）、订阅列表首页（`subscriptionList`）；
   - 读：先读缓存立即渲染，`isFresh` 决定是否后台刷新；无缓存才骨架；刷新失败时保留旧内容；
   - TTL：单集 24h、节目 12h、首页精选 5min / 发现 3min / 分类 10min、订阅列表 5min；
   - 失效：星标/订阅写入成功后 `invalidateScope('subscriptionList')` + 定向清 `podcastDetail`；
-  - 清理：启动时删除 30 天未访问的实体/页面。
+  - 清理：启动时删除 30 天未刷新（按 `fetchedAt` 写入时间）的实体/页面。
 - **Phase 2：outbox 写队列 + 节流**（`src/db/outbox.ts`、`src/hooks/useLocalSync.ts`）：
   - 写入（播放进度 / 星标 / 订阅）先落 IndexedDB，再按「账号 + kind + 实体」合并成最新一条；
   - 调度：入队 700ms 后 flush，每 15s 兜底重试，页面重新可见 / 离开时再 flush；
   - 批量：同轮播放进度按 eid 去重合并成一次 `playback_progress_update {data:[...]}`；
   - 失败：1s/2s/4s… 指数退避（上限 5min，最多 8 次后拉长），队列持久化、下次启动继续；
   - 页面关闭不丢写入，由 IndexedDB 持久化兜底。
+- **增量同步：最近收听本地库**（`src/db/sync.ts`、`src/db/schema.ts` 的 `playedCache` 表，详见 §21）：
+  - 对齐 App 的 `list-for-cache` 版本游标机制：本地存一份最近收听快照 + `syncMeta` 游标 `playedCacheVersion`；
+  - 同步带游标拉取，`needRefresh=true`（或首次无游标）才整体替换本地库并事务推进游标，`false` 保留缓存不重拉；
+  - `useLocalSync` 按账号启停：启动 + 每 5min + 页面可见 + 网络恢复时各同步一次；只做同步层，暂无可见 UI（`readPlayedCache()` 留作消费入口）。
 - **实测**（mock）：首次访问后 IDB 有 `entities=1 / pages=2`；把 API 延迟调到 3s 后二次打开，
   1.6s 内直接用缓存渲染完成（无骨架、无等待网络）；点一次星标后 outbox 落库 1 条并在 3s 内 flush 清空，
   同时该账号的 `subscriptionList` 缓存被失效。
 - **边界**：首期只覆盖高价值域（单集/节目详情、首页 feed、订阅列表）；消息/评论等后续按域扩展；
   缓存是加速层，不是真相源，写操作成功仍以服务端为准。
+
+---
+
+## 21. 最近收听增量同步 + 补丁修复（2026-11-12）
+
+- **目标**：把 §20 的本地库从「TTL 过期重拉」补全为 App 同款的**版本游标增量同步**——本地维护一份「最近收听」快照，
+  版本没变就不重拉，变了才整体替换。此前 `syncMeta` 表建了却没用，本次真正接上。
+- **契约（真实抓包 2026-11-11 + APK 反编译双重确认）**：
+  - 上游 `POST /v1/episode-played/list-for-cache`，xyz 代理 `/episode_played_list_for_cache`（补丁第 22 条路由）；
+  - 请求 `{version?: ISO时间戳, loadMoreKey?}`：首次不带 version，之后带本地存的上次快照版本；
+  - 响应 `{data: PlayedHistory[], version, needRefresh, loadMoreKey?}`：`data` 是当前最近收听快照（条目用 `id` 而非 `eid`，含 title/description/podcast），
+    `version` 是快照版本，`needRefresh` 告知本地缓存是否过期。
+  - App 侧语义（反编译 `EpiHistoryModelImpl`：`replaceHistoryCache` + `deleteOtherHistoryCacheVersions` + `history_cache_version`）是
+    **带版本的全量快照替换**：`needRefresh=true` 整体替换并删旧版本行、推进游标；`false` 保留缓存。播放进度另走 `playback_progress_list`，不在此快照里。
+- **前端实现**：
+  - `src/api/playback.ts`：`episodePlayedCacheAPI(version?, loadMoreKey?)` → `{items, version, needRefresh, loadMoreKey}`；
+  - `src/db/schema.ts`：新增 `playedCache` 表（DB **v2** 迁移，账号隔离 + `position` + `version`），`syncMeta` 游标 `playedCacheVersion` 与读写 helper；
+  - `src/db/sync.ts`：`needRefresh=true`（或首次无游标）才事务化整体替换本地库并推进游标，`false` 直接返回；刷新时跟随 `loadMoreKey` 累积完整快照（上限 20 页防死循环）；
+  - `src/hooks/useLocalSync.ts`：按 `userId` 启停（启动 + 每 5min + 页面可见 + 网络恢复）；`readPlayedCache()` 留作后续 UI / 播放恢复的消费入口（本期只做同步层，无可见 UI）。
+- **一并修复的缺口**：
+  - `clearAccountCache(uid)` 此前定义了却从未调用 → 经动态 import 接到 `authStore.logout` 与 refresh 失败的 `clearFn` 两条路径（断开 authStore↔schema 循环依赖），登出/换号不再残留本地库；
+  - `outbox.enqueueOutbox` 的 delete+add 事务化；`reschedule` 去掉超限时的重复 update；`pruneStaleCache` 注释按实际「写入时间」语义修正。
+- **后端补丁修复（重要）**：原 `notification-endpoints.patch` **漏了 `handlers/playback.go`**——router 引用了 `PlaybackProgressList` 等 handler 但补丁未创建该文件，
+  在干净上游 `git apply` 后 `go build` 会因未定义 handler 失败。本次重新生成补丁纳入 `playback.go`（含新增 `EpisodePlayedListForCache`），
+  补丁现为 **22 条代理路由 / 18145 B**（原 21 条 / 16393 B）。`utils/http.go` 的 `local-time` 动态生成仍按既有决定不入生产补丁。
+- **验证**：
+  - `pnpm lint`、`tsc -b && vite build` 全绿；本机后端与干净 worktree（pin `22cfe78`）apply 补丁后 `go build` 均通过；`docker compose config` 校验通过；
+  - mock 模式真实浏览器实测：Dexie v2 迁移建表 ✓、首同步建库 + 游标 ✓、同版本二次同步 no-op（`syncedAt` 不变、不重拉）✓、
+    播放新单集推进版本 → 整体替换 + 游标推进 + 快照顺序更新 ✓、登出后该账号所有表清零 ✓。
+  - **未做**：真实上游联调（无新鲜 token），契约已由抓包 + APK 确认、后端路由编译通过；可见 UI（按本期范围只做同步层）。

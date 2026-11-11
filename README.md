@@ -1,6 +1,6 @@
 # 宇宙电台 · xyz-web（小宇宙播客 Web 客户端）
 
-基于 **React 19 + TypeScript 6 + Vite 8 + Ant Design 6 + Alova 3 + Zustand 5 + React Router 7 + Tailwind CSS 3** 的播客 Web 客户端，接口对接**自建**的 [ultrazg/xyz](https://github.com/ultrazg/xyz)（Go 单进程，默认端口 `23020`），由它代理小宇宙上游 API。
+基于 **React 19 + TypeScript 6 + Vite 8 + Ant Design 6 + Alova 3 + Zustand 5 + React Router 7 + Tailwind CSS 3** 的播客 Web 客户端，接口对接自建的 [xyzus-backend](https://github.com/simiooo/xyzus-backend)（[ultrazg/xyz](https://github.com/ultrazg/xyz) 的补丁版，Go 单进程，默认端口 `23020`，补齐 22 条代理端点），由它代理小宇宙上游 API。
 
 界面规范见 [`docs/DESIGN.md`](docs/DESIGN.md)｜工程约定见 [`AGENTS.md`](AGENTS.md)。
 
@@ -78,8 +78,8 @@ node scripts/shoot-all.mjs      # 批量：桌面 + 移动，输出到 shots/
 ### B. 真机联调（需要自建 xyz 后端）
 
 ```bash
-# 1) 起后端：把 xyz 克隆到任意目录（不要放进本仓库）
-git clone https://github.com/ultrazg/xyz ../xyz-backend
+# 1) 起后端：克隆补丁版后端（含 22 条代理端点 + local-time 修复；上游 ultrazg/xyz 缺这些路由）到任意目录
+git clone https://github.com/simiooo/xyzus-backend ../xyz-backend
 cd ../xyz-backend
 go build -o xyz .                # 国内可用 $env:GOPROXY='https://goproxy.cn,direct'（PowerShell）
 ./xyz                            # 默认监听 23020；xyz -p 3000 可改端口（此时同步改 XYZ_API_TARGET）
@@ -89,11 +89,34 @@ cd -
 pnpm dev                         # http://localhost:5173/，/api/* 由 Vite 代理到 localhost:23020
 ```
 
-### C. Docker 一键部署
+### C. Docker Compose 部署（推荐：前端 + 后端一键起）
+
+前置：安装 [Docker](https://docs.docker.com/get-docker/) 与 Docker Compose v2（`docker compose` 命令）。
 
 ```bash
-docker compose up -d --build    # 前端 http://localhost:8080/ ，/api 反代到 backend:23020
+git clone https://github.com/simiooo/xyzus-web.git
+cd xyzus-web
+docker compose up -d --build
 ```
+
+- 一条命令同时构建**前端**（`pnpm build` → nginx）与**补丁后端**（`backend.Dockerfile` 克隆上游 `22cfe78`
+  + apply `backend-patches/` 的 22 条代理端点 + local-time 修复），**无需手动起后端**。
+- **本机访问**：http://localhost:8080/
+- **局域网访问**：http://<主机IP>:8080/（端口绑 `0.0.0.0`，同一局域网的手机 / 其它电脑可直接打开；
+  主机 IP 用 `ipconfig`（Windows）/ `ip a`（Linux）查）。
+- 打开后用**小宇宙 App 扫码登录**（扫码走同源 `/qrcode-api` 代理，局域网下同样可用）。
+
+常用运维：
+
+```bash
+docker compose ps               # 查看容器状态
+docker compose logs -f backend  # 看后端日志（Ctrl+C 退出）
+docker compose up -d --build    # 改了代码 / 补丁后重新构建并更新
+docker compose down             # 停止并移除容器
+```
+
+> 后端默认 `TZ=Asia/Shanghai`，`utils/http.go` 每请求动态生成 `local-time`，保证播放进度跨端同步不被上游静默丢弃（见 §21）。
+> 只想单独跑后端（开发 / 配其它客户端）见 [xyzus-backend](https://github.com/simiooo/xyzus-backend)。
 
 ---
 

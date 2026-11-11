@@ -1,0 +1,433 @@
+diff --git a/handlers/ai.go b/handlers/ai.go
+new file mode 100644
+index 0000000..d5b53fa
+--- /dev/null
++++ b/handlers/ai.go
+@@ -0,0 +1,105 @@
++package handlers
++
++import (
++	"encoding/json"
++	"errors"
++	"io"
++	"net/http"
++	"net/url"
++	"strings"
++	"time"
++
++	"github.com/gin-gonic/gin"
++	"github.com/ultrazg/xyz/utils"
++)
++
++// AI 摘要 / 文字稿：只读透传。
++// 真实抓包（2026-11-11）：
++// - /v1/ai-summary/episode/retrieve-brief body {eid} → {requested, summary:{status,brief,...}|null, confirmation}
++// - /v1/episode-transcript/get body {eid, mediaId} → {key, vendorDeclaration, transcriptUrl, highlightUrl}
++//
++// 文字稿正文放在 CDN 的签名地址上（transcript.xyzcdn.net / transcript-highlight.xyzcdn.net），
++// 直接让浏览器 fetch 会被跨域/鉴权拦。这里加一个受限的本地代理：只允许上面两个 host，
++// 由后端带上 App 的 UA/Referer 去取，返回解析后的 JSON（通常是一段 [{text,startMs}]）。
++
++var (
++	transcriptHTTPClient   = &http.Client{Timeout: 25 * time.Second}
++	allowedTranscriptHosts = map[string]bool{
++		"transcript.xyzcdn.net":           true,
++		"transcript-highlight.xyzcdn.net": true,
++	}
++)
++
++const maxTranscriptBytes = 8 << 20
++
++// AISummaryEpisodeRetrieveBrief 单集 AI 摘要
++var AISummaryEpisodeRetrieveBrief = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/ai-summary/episode/retrieve-brief")
++}
++
++// EpisodeTranscriptGet 单集文字稿元数据（返回 CDN 签名地址）
++var EpisodeTranscriptGet = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/episode-transcript/get")
++}
++
++// EpisodeTranscriptContent 取文字稿正文：body {url:<transcriptUrl>} → data 为 CDN 返回的 JSON
++var EpisodeTranscriptContent = func(ctx *gin.Context) {
++	var req struct {
++		URL string `json:"url"`
++	}
++
++	if err := ctx.ShouldBindJSON(&req); err != nil {
++		utils.ReturnBadRequest(ctx, err)
++
++		return
++	}
++
++	parsed, err := url.Parse(strings.TrimSpace(req.URL))
++	if err != nil || parsed.Scheme != "https" || !allowedTranscriptHosts[parsed.Hostname()] {
++		utils.ReturnBadRequest(ctx, errors.New("transcript url not allowed"))
++
++		return
++	}
++
++	httpReq, err := http.NewRequest(http.MethodGet, parsed.String(), nil)
++	if err != nil {
++		utils.ReturnBadRequest(ctx, err)
++
++		return
++	}
++
++	// CDN 会校验 Referer/UA，这里固定成 App 的请求特征（与抓包一致）
++	httpReq.Header.Set("User-Agent", "Xiaoyuzhou/3.4.2 (android 34)")
++	httpReq.Header.Set("Referer", "https://www.xiaoyuzhoufm.com/")
++	httpReq.Header.Set("Accept", "application/json")
++
++	resp, err := transcriptHTTPClient.Do(httpReq)
++	if err != nil {
++		ctx.JSON(http.StatusBadGateway, gin.H{"code": http.StatusBadGateway, "msg": utils.GetMsg(http.StatusBadGateway)})
++
++		return
++	}
++	defer resp.Body.Close()
++
++	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
++		ctx.JSON(http.StatusBadGateway, gin.H{"code": http.StatusBadGateway, "msg": utils.GetMsg(http.StatusBadGateway)})
++
++		return
++	}
++
++	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTranscriptBytes+1))
++	if err != nil || len(body) > maxTranscriptBytes {
++		ctx.JSON(http.StatusBadGateway, gin.H{"code": http.StatusBadGateway, "msg": utils.GetMsg(http.StatusBadGateway)})
++
++		return
++	}
++
++	var data any
++	if err = json.Unmarshal(body, &data); err != nil {
++		ctx.JSON(http.StatusBadGateway, gin.H{"code": http.StatusBadGateway, "msg": utils.GetMsg(http.StatusBadGateway)})
++
++		return
++	}
++
++	ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "msg": utils.GetMsg(http.StatusOK), "data": data})
++}
+diff --git a/handlers/comment_extra.go b/handlers/comment_extra.go
+new file mode 100644
+index 0000000..9fe839b
+--- /dev/null
++++ b/handlers/comment_extra.go
+@@ -0,0 +1,64 @@
++package handlers
++
++import (
++	"log"
++	"net/http"
++	"net/url"
++
++	"github.com/gin-gonic/gin"
++	"github.com/ultrazg/xyz/constant"
++	"github.com/ultrazg/xyz/utils"
++)
++
++// 评论增强相关端点：全部为只读透传，body 与上游一致。
++// 真实抓包（2026-11-11，小宇宙 3.4.2）：
++// - /v1/comment/list-thread/v2       body {primaryCommentId, order:"SMART"} → {data, totalCount}
++// - /v1/comment/list-mine            body {order:"TIME"|"LIKE", limit}       → {data:[Comment+episode]}
++// - /v1/comment/list-timestamp-primary body {owner:{id:eid,type:"EPISODE"}, from, to} → {data:[{id,timestamp,type}]}
++// - /v1/comment/get                  GET ?commentId=<id>                     → {data:<Comment>}
++
++// CommentListThreadV2 评论回复（v2）
++var CommentListThreadV2 = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/comment/list-thread/v2")
++}
++
++// CommentListMine 我的评论
++var CommentListMine = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/comment/list-mine")
++}
++
++// CommentListTimestampPrimary 时点评论（按音频区间 from/to 查询，返回时点标记）
++var CommentListTimestampPrimary = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/comment/list-timestamp-primary")
++}
++
++// CommentGet 按 id 取单条评论（时点标记 → 评论正文）
++var CommentGet = func(ctx *gin.Context) {
++	var req struct {
++		CommentID string `json:"commentId"`
++	}
++
++	if err := ctx.ShouldBindJSON(&req); err != nil || req.CommentID == "" {
++		utils.ReturnBadRequest(ctx, err)
++
++		return
++	}
++
++	headers := notificationHeaders(ctx.Request.Header.Get("x-jike-access-token"))
++	upstream := constant.BaseUrl + "/v1/comment/get?commentId=" + url.QueryEscape(req.CommentID)
++
++	response, code, err := utils.Request(upstream, http.MethodGet, map[string]any{}, headers)
++	if err != nil {
++		ctx.JSON(code, gin.H{
++			"code": code,
++			"msg":  utils.GetMsg(code),
++			"data": err.Error(),
++		})
++
++		log.Println("/v1/comment/get", code, utils.GetMsg(code))
++
++		return
++	}
++
++	utils.ReturnJson(response, ctx)
++}
+diff --git a/handlers/following.go b/handlers/following.go
+index 0187cf6..860a30a 100644
+--- a/handlers/following.go
++++ b/handlers/following.go
+@@ -102,3 +102,13 @@ var FollowerList = func(ctx *gin.Context) {
+ 
+ 	utils.ReturnJson(response, ctx)
+ }
++
++// FollowingUpdatesList 关注动态（谁推荐了哪一期）：真实抓包是 POST body {}（不是 GET）。
++var FollowingUpdatesList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/personal-update/list-following-updates")
++}
++
++// SubscriptionOftenPlayed 常听节目
++var SubscriptionOftenPlayed = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/subscription/list-often-played")
++}
+diff --git a/handlers/homefeed.go b/handlers/homefeed.go
+new file mode 100644
+index 0000000..c8b8cff
+--- /dev/null
++++ b/handlers/homefeed.go
+@@ -0,0 +1,34 @@
++package handlers
++
++import (
++	"github.com/gin-gonic/gin"
++)
++
++// 首页 feed / 收件箱 v2 / 相关单集等上游代理端点。
++// 与通知类接口共用 handlers/notification.go 里的 bindNotificationBody + proxyNotification：
++// 客户端 JSON body 原样透传给上游，上游 JSON 原样返回，不额外改写字段。
++
++// InboxListV2 收件箱列表（v2，body 透传 limit / loadMoreKey）
++var InboxListV2 = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v2/inbox/list")
++}
++
++// TabFeaturedList 首页「精选」tab 列表（body 透传 loadMoreKey / returnAll / forceRefresh）
++var TabFeaturedList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/tab/featured/list")
++}
++
++// TabDiscoveryList 首页「发现」tab 列表（body 透传 returnAll / forceRefresh）
++var TabDiscoveryList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/tab/discovery/list")
++}
++
++// TabCategoryList 首页「分类」tab 列表（body 透传 loadMoreKey）
++var TabCategoryList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/tab/category/list")
++}
++
++// RelatedEpisodeList 相关单集列表（body 透传 eid）
++var RelatedEpisodeList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/related-episode/list")
++}
+diff --git a/handlers/notification.go b/handlers/notification.go
+new file mode 100644
+index 0000000..10c8e0e
+--- /dev/null
++++ b/handlers/notification.go
+@@ -0,0 +1,112 @@
++package handlers
++
++import (
++	"errors"
++	"io"
++	"log"
++	"net/http"
++	"time"
++
++	"github.com/gin-gonic/gin"
++	"github.com/ultrazg/xyz/constant"
++	"github.com/ultrazg/xyz/utils"
++)
++
++// notificationHeaders 通知类接口共用的 iOS 客户端伪装请求头（模板参考 handlers/notice.go）
++func notificationHeaders(token string) map[string]string {
++	now := time.Now()
++	isoTime := now.Format("2006-01-02T15:04:05Z07:00")
++
++	return map[string]string{
++		"Host":                        "api.xiaoyuzhoufm.com",
++		"User-Agent":                  "Xiaoyuzhou/2.57.1 (build:1576; iOS 17.4.1)",
++		"Market":                      "AppStore",
++		"App-BuildNo":                 "1576",
++		"OS":                          "ios",
++		"x-jike-access-token":         token,
++		"Manufacturer":                "Apple",
++		"BundleID":                    "app.podcast.cosmos",
++		"Connection":                  "keep-alive",
++		"Accept-Language":             "zh-Hans-CN;q=1.0, zh-Hant-TW;q=0.9",
++		"Model":                       "iPhone14,2",
++		"app-permissions":             "4",
++		"Accept":                      "*/*",
++		"Content-Type":                "application/json",
++		"App-Version":                 "2.57.1",
++		"WifiConnected":               "true",
++		"OS-Version":                  "17.4.1",
++		"x-custom-xiaoyuzhou-app-dev": "",
++		"Local-Time":                  isoTime,
++		"Timezone":                    "Asia/Shanghai",
++		"x-jike-device-id":            "",
++		"x-jike-device-properties":    "",
++	}
++}
++
++// bindNotificationBody 把客户端 JSON body 原样读成 map 供上游透传；空 body 返回空 map
++func bindNotificationBody(ctx *gin.Context) (map[string]any, bool) {
++	p := map[string]any{}
++
++	if ctx.Request.ContentLength == 0 {
++		return p, true
++	}
++
++	if err := ctx.ShouldBindJSON(&p); err != nil && !errors.Is(err, io.EOF) {
++		utils.ReturnBadRequest(ctx, err)
++
++		return nil, false
++	}
++
++	if p == nil {
++		p = map[string]any{}
++	}
++
++	return p, true
++}
++
++// proxyNotification 把客户端 body 原样 POST 到上游通知接口，并把上游 JSON 返回给客户端
++func proxyNotification(ctx *gin.Context, upstreamPath string) {
++	p, ok := bindNotificationBody(ctx)
++	if !ok {
++		return
++	}
++
++	h := ctx.Request.Header
++	headers := notificationHeaders(h.Get("x-jike-access-token"))
++
++	url := constant.BaseUrl + upstreamPath
++	response, code, err := utils.Request(url, http.MethodPost, p, headers)
++	if err != nil {
++		ctx.JSON(code, gin.H{
++			"code": code,
++			"msg":  utils.GetMsg(code),
++			"data": err.Error(),
++		})
++
++		log.Println(upstreamPath, code, utils.GetMsg(code))
++
++		return
++	}
++
++	utils.ReturnJson(response, ctx)
++}
++
++// NoticeList 互动通知列表
++var NoticeList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/notice/list")
++}
++
++// InboxRemove 删除收件箱消息
++var InboxRemove = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/inbox/remove")
++}
++
++// SystemNoticeList 系统通知列表
++var SystemNoticeList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/api/systemNotice/systemNotice/list")
++}
++
++// SystemNoticeUnread 系统通知未读数
++var SystemNoticeUnread = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/api/systemNotice/unread/get")
++}
+diff --git a/handlers/playback.go b/handlers/playback.go
+new file mode 100644
+index 0000000..ba677e0
+--- /dev/null
++++ b/handlers/playback.go
+@@ -0,0 +1,30 @@
++package handlers
++
++import "github.com/gin-gonic/gin"
++
++// 播放状态同步（真实抓包 2026-11-11）：
++// - POST /v1/playback-progress/list   body {eids:[...]} → {data:[{eid,pid,progress,playedAt}]}
++// - POST /v1/playback-progress/update body {data:[{eid,pid,playedAt,progress}]} → {}
++// - POST /v1/episode-played/create    body {eid, mediaSource?} → {}
++// - POST /v1/episode-played/list-for-cache body {version?, loadMoreKey?} → {data, version, needRefresh}
++// 上游按 playedAt 的先后合并多端进度（最后写入者优先），客户端只负责带上时间戳。
++
++// PlaybackProgressList 批量取服务端播放进度（跨端续听）
++var PlaybackProgressList = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/playback-progress/list")
++}
++
++// PlaybackProgressUpdate 上报播放进度（带 playedAt，服务端做多端合并）
++var PlaybackProgressUpdate = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/playback-progress/update")
++}
++
++// EpisodePlayedCreate 记录一次「开始收听」（更新最近播放/收听历史）
++var EpisodePlayedCreate = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/episode-played/create")
++}
++
++// EpisodePlayedListForCache 最近收听本地缓存增量同步（带版本游标，对齐 App 3.4.2）
++var EpisodePlayedListForCache = func(ctx *gin.Context) {
++	proxyNotification(ctx, "/v1/episode-played/list-for-cache")
++}
+diff --git a/router/router.go b/router/router.go
+index ecc0ce6..4af5bc6 100644
+--- a/router/router.go
++++ b/router/router.go
+@@ -46,6 +46,19 @@ func RegisterRouters(engine *gin.Engine) {
+ 	engine.POST("/comment_like_update", utils.CheckAccessToken(), handlers.CommentLikeUpdate)                             // 点赞/取消点赞评论
+ 	engine.POST("/comment_create", utils.CheckAccessToken(), handlers.CommentCreate)                                      // 创建评论
+ 	engine.POST("/comment_remove", utils.CheckAccessToken(), handlers.CommentRemove)                                      // 删除评论
++	engine.POST("/comment_list_thread_v2", utils.CheckAccessToken(), handlers.CommentListThreadV2)                         // 评论回复 v2
++	engine.POST("/comment_list_mine", utils.CheckAccessToken(), handlers.CommentListMine)                                 // 我的评论
++	engine.POST("/comment_list_timestamp_primary", utils.CheckAccessToken(), handlers.CommentListTimestampPrimary)        // 时点评论
++	engine.POST("/comment_get", utils.CheckAccessToken(), handlers.CommentGet)                                            // 按 id 取评论
++	engine.POST("/ai_summary_episode_retrieve_brief", utils.CheckAccessToken(), handlers.AISummaryEpisodeRetrieveBrief)  // 单集 AI 摘要
++	engine.POST("/episode_transcript_get", utils.CheckAccessToken(), handlers.EpisodeTranscriptGet)                       // 单集文字稿
++	engine.POST("/episode_transcript_content", utils.CheckAccessToken(), handlers.EpisodeTranscriptContent)               // 单集文字稿正文（CDN 代理）
++	engine.POST("/playback_progress_list", utils.CheckAccessToken(), handlers.PlaybackProgressList)                       // 批量取播放进度（跨端续听）
++	engine.POST("/playback_progress_update", utils.CheckAccessToken(), handlers.PlaybackProgressUpdate)                   // 上报播放进度（多端合并）
++	engine.POST("/episode_played_create", utils.CheckAccessToken(), handlers.EpisodePlayedCreate)                         // 记录开始收听
++	engine.POST("/episode_played_list_for_cache", utils.CheckAccessToken(), handlers.EpisodePlayedListForCache)           // 最近收听增量同步（版本游标）
++	engine.POST("/following_updates_list", utils.CheckAccessToken(), handlers.FollowingUpdatesList)                       // 关注动态
++	engine.POST("/subscription_often_played", utils.CheckAccessToken(), handlers.SubscriptionOftenPlayed)                 // 常听节目
+ 	engine.POST("/discovery", utils.CheckAccessToken(), handlers.Discovery)                                               // 首页榜单、精选节目、推荐等
+ 	engine.POST("/editor_pick_list_history", utils.CheckAccessToken(), handlers.EditorPickListHistory)                    // 编辑精选-往日精选历史
+ 	engine.POST("/pilot_discovery_list", utils.CheckAccessToken(), handlers.PilotDiscoveryList)                           // 新节目广场
+@@ -63,6 +76,15 @@ func RegisterRouters(engine *gin.Engine) {
+ 	engine.POST("/episode_played_history_list", utils.CheckAccessToken(), handlers.EpisodePlayedHistoryList)              // 收听历史
+ 	engine.POST("/episode_played_history_list_update", utils.CheckAccessToken(), handlers.UpdateEpisodePlayedHistoryList) // 更新收听历史
+ 	engine.POST("/unread_count", utils.CheckAccessToken(), handlers.UnreadCount)                                          // 未读消息
++	engine.POST("/notice_list", utils.CheckAccessToken(), handlers.NoticeList)                                            // 互动通知列表
++	engine.POST("/inbox_remove", utils.CheckAccessToken(), handlers.InboxRemove)                                          // 删除收件箱消息
++	engine.POST("/system_notice_list", utils.CheckAccessToken(), handlers.SystemNoticeList)                               // 系统通知列表
++	engine.POST("/system_notice_unread", utils.CheckAccessToken(), handlers.SystemNoticeUnread)                           // 系统通知未读数
++	engine.POST("/inbox_list_v2", utils.CheckAccessToken(), handlers.InboxListV2)                                         // 收件箱列表 v2
++	engine.POST("/tab_featured_list", utils.CheckAccessToken(), handlers.TabFeaturedList)                                 // 首页「精选」tab 列表
++	engine.POST("/tab_discovery_list", utils.CheckAccessToken(), handlers.TabDiscoveryList)                               // 首页「发现」tab 列表
++	engine.POST("/tab_category_list", utils.CheckAccessToken(), handlers.TabCategoryList)                                 // 首页「分类」tab 列表
++	engine.POST("/related_episode_list", utils.CheckAccessToken(), handlers.RelatedEpisodeList)                           // 相关单集列表
+ 	engine.POST("/user_stats", utils.CheckAccessToken(), handlers.GetUserStats)                                           // 用户统计数据
+ 	engine.POST("/get_profile", utils.CheckAccessToken(), handlers.GetProfileByUid)                                       // 根据 uid 查询用户信息
+ 	engine.POST("/mileage_get", utils.CheckAccessToken(), handlers.GetMileage)                                            // 获取收听数据概览

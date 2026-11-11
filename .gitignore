@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 本地视觉验收产物
+shots/
+.chrome-tmp/
+

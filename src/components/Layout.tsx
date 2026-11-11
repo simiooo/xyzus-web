@@ -1,94 +1,74 @@
-import { Outlet, useNavigate } from 'react-router'
-import { Input, Avatar, Dropdown, Typography } from 'antd'
-import { UserOutlined } from '@ant-design/icons'
-import { useState } from 'react'
-import useAuthStore from '@/stores/authStore'
+import { Outlet, useLocation } from 'react-router'
+import { useEffect, useRef } from 'react'
 import useAudioStore from '@/stores/audioStore'
-import Sidebar from './Sidebar'
-import RightPanel from './RightPanel'
-import MiniPlayer from './MiniPlayer'
-import MobileNav from './MobileNav'
-import type { MenuProps } from 'antd'
+import useUiStore from '@/stores/uiStore'
+import usePlayerShortcuts from '@/hooks/usePlayerShortcuts'
+import usePlaybackSync from '@/hooks/usePlaybackSync'
+import useLocalSync from '@/hooks/useLocalSync'
+import useUnreadCount from '@/hooks/useUnreadCount'
+import Rail from './shell/Rail'
+import TopBar from './shell/TopBar'
+import RightSidebar from './shell/RightSidebar'
+import PlayerBar from './shell/PlayerBar'
+import PlayerSheet from './shell/PlayerSheet'
+import CommentsSheet from './shell/CommentsSheet'
+import MobileTabs from './shell/MobileTabs'
 
-const { Text } = Typography
-
+/**
+ * X 式三列外壳：左导航（232）+ 中间内容（640）+ 右侧栏（320）。
+ * 窄屏去掉右栏、再窄去掉左栏，中间始终是同一列。
+ * 超宽屏时整个外壳作为一块画布居中。
+ */
 export default function Layout() {
-  const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
-  const [searchValue, setSearchValue] = useState('')
+  const location = useLocation()
   const currentEpisode = useAudioStore((s) => s.currentEpisode)
+  const setPlayerSheetOpen = useUiStore((s) => s.setPlayerSheetOpen)
+  const mainRef = useRef<HTMLElement>(null)
 
-  const handleSearch = (value: string) => {
-    if (value.trim()) {
-      navigate(`/search?keyword=${encodeURIComponent(value.trim())}`)
-    }
-  }
+  usePlayerShortcuts()
+  usePlaybackSync()
+  useLocalSync()
+  useUnreadCount()
 
-  const userMenuItems: MenuProps['items'] = [
-    { key: 'favorites', label: 'My Favorites', onClick: () => navigate('/favorites') },
-    { key: 'logout', label: 'Logout', onClick: () => { logout(); navigate('/login') } },
-  ]
+  // 换页：回到页面顶部
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    mainRef.current?.scrollTo?.(0, 0)
+  }, [location.pathname])
 
-  const paddingBottom = currentEpisode ? 136 : 72
+  // 换台时不要停留在上一个页面的展开态
+  useEffect(() => {
+    if (!currentEpisode) setPlayerSheetOpen(false)
+  }, [currentEpisode, setPlayerSheetOpen])
 
   return (
-    <div className="min-h-screen bg-base">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
+    <div className="min-h-screen bg-[var(--background)]">
+      <div className="mx-auto flex w-full max-w-[var(--shell-max)]">
+        <Rail />
 
-      <div className="md:ml-[88px] xl:mr-[324px] min-h-screen transition-all duration-200">
-        <div className="sticky top-0 z-sticky bg-base/80 backdrop-blur-md border-b border-subtle">
-          <div className="mx-auto max-w-[760px] px-4 md:px-0 h-14 flex items-center gap-3">
-            <Text strong className="md:!hidden !text-primary text-lg whitespace-nowrap flex-shrink-0">
-              Podcast
-            </Text>
-            <Input.Search
-              placeholder="Search podcasts & episodes"
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              onSearch={handleSearch}
-              className="flex-1 max-w-md"
-              size="middle"
-            />
-            <div className="flex-1 hidden md:block" />
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              {user?.avatar?.picture?.thumbnailUrl ? (
-                <Avatar
-                  src={user.avatar.picture.thumbnailUrl}
-                  size={32}
-                  className="cursor-pointer flex-shrink-0"
-                  style={{ border: '2px solid rgba(255,255,255,0.20)' }}
-                />
-              ) : (
-                <Avatar
-                  icon={<UserOutlined />}
-                  size={32}
-                  className="cursor-pointer flex-shrink-0"
-                  style={{ background: '#352C26' }}
-                />
-              )}
-            </Dropdown>
-          </div>
+        <div className="min-w-0 flex-1">
+          <TopBar />
+
+          <main
+            ref={mainRef}
+            className="w-full px-4 pb-24 pt-3 lg:px-5 lg:pt-4"
+            style={{
+              paddingBottom: currentEpisode
+                ? 'calc(var(--tabbar-h) + var(--player-h) + 32px)'
+                : 'calc(var(--tabbar-h) + 24px)',
+            }}
+          >
+            <Outlet />
+          </main>
         </div>
 
-        <div
-          className="mx-auto max-w-[760px] px-4 md:px-0 py-4"
-          style={{ paddingBottom }}
-        >
-          <Outlet />
-        </div>
+        <RightSidebar />
       </div>
 
-      <div className="hidden xl:block">
-        <RightPanel />
-      </div>
-
-      <MiniPlayer />
-
-      <div className="block md:hidden">
-        <MobileNav />
-      </div>
+      <PlayerBar />
+      <PlayerSheet />
+      <CommentsSheet />
+      <MobileTabs />
     </div>
   )
 }

@@ -1,13 +1,68 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN" data-accent="blue" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <title>Podcast</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- 字体：MiSans（小米，中文+拉丁都覆盖，免费商用需注明）。
+         优先小米官方字体服务与 HyperOS CDN（国内），失败回退国内 jsDelivr 镜像，
+         再失败回退 cdn.jsdelivr.net。官方 CSS 按 unicode-range 分片，只下载用到的字。 -->
+    <link rel="preconnect" href="https://font.sec.miui.com" crossorigin />
+    <link rel="preconnect" href="https://cdn-file.hyperos.mi.com" crossorigin />
+    <link rel="preconnect" href="https://jsd.onmicrosoft.cn" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link
+      id="misans-css"
+      rel="stylesheet"
+      href="https://font.sec.miui.com/font/css?family=MiSans:400,500,600,700:Chinese_Simplify,Latin&display=swap"
+    />
+    <script>
+      // 字体兜底：官方 CSS 失败 → 国内 jsDelivr 镜像 → 国外 jsDelivr（可变字重版本）
+      ;(function () {
+        var fallbacks = [
+          'https://jsd.onmicrosoft.cn/npm/misans@5.0.0/lib/Normal/MiSansVF.min.css',
+          'https://cdn.jsdelivr.net/npm/misans@5.0.0/lib/Normal/MiSansVF.min.css',
+        ]
+        var index = 0
+        var primary = document.getElementById('misans-css')
+        if (!primary) return
+        var onFail = function () {
+          if (index >= fallbacks.length) return
+          var fallback = document.createElement('link')
+          fallback.rel = 'stylesheet'
+          fallback.href = fallbacks[index]
+          index += 1
+          fallback.onerror = onFail
+          document.head.appendChild(fallback)
+        }
+        primary.onerror = onFail
+      })()
+    </script>    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
+    <script>
+      // 首屏前就把外观铺上，避免白屏闪一下；和 src/stores/themeStore.ts 读同一份 keys
+      try {
+        var accent = localStorage.getItem('xyz:accent')
+        if (accent !== 'pink' && accent !== 'blue') accent = 'blue'
+        var appearance = localStorage.getItem('xyz:appearance')
+        if (appearance !== 'dark') appearance = 'light'
+        var root = document.documentElement
+        root.setAttribute('data-accent', accent)
+        root.setAttribute('data-theme', appearance)
+        root.style.colorScheme = appearance
+        var schemeMeta = document.querySelector('meta[name="color-scheme"]')
+        if (schemeMeta) schemeMeta.setAttribute('content', appearance)
+        var colorMeta = document.querySelector('meta[name="theme-color"]')
+        if (colorMeta) colorMeta.setAttribute('content', appearance === 'dark' ? '#0e0e0d' : '#ffffff')
+      } catch (error) {
+        /* localStorage 不可用时保持默认白底 */
+      }
+    </script>
+    <meta
+      name="description"
+      content="宇宙电台 —— 小宇宙播客的网页版客户端：发现节目、跟踪订阅、播放单集、看评论。"
+    />
+    <title>宇宙电台 · 小宇宙播客</title>
   </head>
   <body>
     <div id="root"></div>

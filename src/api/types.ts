@@ -76,7 +76,10 @@ export interface EpisodeBasic {
     id: string
     size: number
     mimeType: string
-    source: { mode: string; url: string }
+    /** 付费/私密单集上游可能给 null（需要 /private_media_get 兜底），见 resolveEpisodeAudioUrl */
+    source: { mode: string; url: string | null }
+    /** 部分单集只有备份源 */
+    backupSource?: { mode: string; url: string }
   }
   clapCount: number
   commentCount: number
@@ -151,9 +154,14 @@ export interface EditorPickItem {
   comment?: Comment
 }
 
+/**
+ * 登录响应（alova 拦截器剥掉后端信封之后）：token 在顶层，
+ * 用户信息在 `data`（xyz `handlers/login.go` 里是 `data.data = user`）。
+ */
 export interface LoginResponse {
   'x-jike-access-token': string
   'x-jike-refresh-token': string
+  data?: UserProfile
 }
 
 export interface UserProfile {
@@ -280,6 +288,7 @@ export interface SearchResponse {
 }
 
 export interface CommentPrimaryParams {
+  /** 单集 eid（api 层内部会拼成后端要求的 `owner:{id,type:'EPISODE'}`） */
   id: string
   order: 'HOT' | 'TIME' | 'TIMESTAMP'
   loadMoreKey?: CommentPrimaryLoadMoreKey
@@ -289,6 +298,8 @@ export interface CommentPrimaryLoadMoreKey {
   direction: string
   hotSortScore: number
   id: string
+  /** 时点评论（TIMESTAMP）时上游要求带 section */
+  section?: string
 }
 
 export interface CommentThreadParams {
@@ -325,7 +336,8 @@ export interface CommentCollectRemoveParams {
 export interface CategoryParams {
   categoryId: string
   tab?: string
-  loadMoreKey?: string
+  /** 后端 `CategoryPodcastListByTabRequestBody.LoadMoreKey` 是 int */
+  loadMoreKey?: number
 }
 
 export interface PickRecentParams {
@@ -339,3 +351,90 @@ export interface EditorPickListHistoryParams {
 export interface PilotDiscoveryListParams {
   loadMoreKey?: string
 }
+
+/* ------------------------------------------------------------------ *
+ * 干净返回类型（api 层归一化之后的结果，页面只看这些）
+ * ------------------------------------------------------------------ */
+
+/**
+ * 分页列表统一形状：页面一律拿 `{ items, loadMoreKey? }`。
+ * 上游/后端各种 `{data:[...]}`、`{data:{data:[...]}}`、`{data:{items:[...]}}`
+ * 的包裹层由 `src/api/normalize.ts` 的 `unwrapPage` 吃掉。
+ */
+export interface PageResult<T, K = unknown> {
+  items: T[]
+  loadMoreKey?: K
+  totalCount?: number
+}
+
+export interface SearchPageResult extends PageResult<SearchRawItem, SearchLoadMoreKey> {
+  highlightWord?: {
+    words: string[]
+    singleMaxHighlightTime: number
+  }
+}
+
+export type CommentPageResult = PageResult<Comment, CommentPrimaryLoadMoreKey>
+
+export interface EpisodeListResult extends PageResult<EpisodeBasic, CursorKey> {
+  order?: string
+  total?: number
+}
+
+export interface EditorPickGroup {
+  date: string
+  dateIsoStr?: string
+  picks: EditorPick[]
+}
+
+export interface EditorPick {
+  episode: EpisodeBasic
+  comment?: Comment
+}
+
+/** /pick_list_recent 的“用户的喜欢”条目 */
+export interface PickRecentItem {
+  id: string
+  type: 'PICK'
+  story?: {
+    text: string
+    emotion: string
+    iconUrl?: string
+  }
+  pickedAt: string
+  episode: EpisodeBasic
+  user?: UserBasic
+  likeCount?: number
+  commentCount?: number
+  isLiked?: boolean
+  readTrackInfo?: Record<string, unknown>
+}
+
+/** /sendCode 的上游返回（风控失败时是 {success:false, code:1003, toast}） */
+export interface SendCodeResult {
+  success?: boolean
+  code?: number
+  toast?: string
+  [key: string]: unknown
+}
+
+/** /private_media_get 的干净返回 */
+export interface PrivateMediaSource {
+  url: string
+  key?: string
+  ttl?: number
+}
+
+/** 登录/粘贴 token 之后的会话聚合结果 */
+export interface LoginSession {
+  accessToken: string
+  refreshToken: string
+  user: UserProfile | null
+}
+
+/** 单集播放地址解析结果（付费/私密单集兜底后仍取不到 URL 时给 reason） */
+export interface EpisodeAudioSource {
+  url: string | null
+  reason?: 'PRIVATE_MEDIA_UNAVAILABLE' | 'NO_MEDIA' | 'FETCH_FAILED'
+}
+

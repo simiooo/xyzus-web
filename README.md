@@ -430,8 +430,8 @@ POST /playback_progress_update {data:[{…progress:2229}]} → HTTP 200；随后
 POST /playback_progress_update {旧 playedAt}      → HTTP 200 但**不生效**（服务端按 playedAt 最后写入优先）
 POST /episode_played_create {"eid"}               → HTTP 200
 ```
-> 坑：上游用请求头 `local-time` 校验/排序进度写入，本地补丁若沿用固定旧值会「200 但静默丢弃」；
-> `utils/http.go` 已改为每次请求动态生成 `local-time`（仅本地设备头覆盖模式生效，不入生产补丁）。
+> 坑：上游用请求头 `local-time` 校验/排序进度写入，固定旧值或格式不符会「200 但静默丢弃」；
+> `utils/http.go` 已对每个上游请求无条件动态生成 `local-time`（对齐 App 格式），已纳入生产补丁（见 §21）。
 
 **dev 代理 / 页面路由（本次一并修复）**
 ```text
@@ -530,7 +530,7 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
 - **未读徽标**：`src/components/shell/UnreadBadge.tsx` + `src/stores/notificationStore.ts`；
   `Layout` 里的 `useUnreadCount` 在登录后取一次，之后窗口聚焦 / 切回标签页 / 每 2 分钟刷新。
   打开消息页即把当前未读数记为本机已看，徽标隐藏；服务端数字之后的增长会重新亮起。
-- **后端补丁**：`backend-patches/notification-endpoints.patch`（22 条代理路由，18145 B）覆盖通知 + 首页 tab +
+- **后端补丁**：`backend-patches/notification-endpoints.patch`（22 条代理路由，20117 B）覆盖通知 + 首页 tab +
   相关单集 + 收件箱 v2 + 评论增强 + AI 摘要/文字稿 + 关注动态/常听节目 + 播放状态同步 + 最近收听增量同步；`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply，
   干净 worktree 正向 `git apply` + `go build` 验证通过；端点用假 token 探测返回 401（见 §9）。
 - **Mock**：`notice_list` 14 条 / 6 条/页（真实形状转换 + 旧结构容错样本）、`inbox_list_v2` 6 条/页、
@@ -693,8 +693,8 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
   4. **冲突协调**：`playedAt` 最后写入优先。本端正在播放时不被远端覆盖；页面重新可见且本端暂停时，
      若远端更新则自动 seek 到远端进度并提示。跨端（手机 → Web）与同浏览器刷新两种情况都实测通过。
 - **两个坑**：
-  - 上游用请求头 **`local-time`** 校验进度写入；固定旧值会导致 `200` 但静默丢弃。本机 xyz 已改为每次请求动态生成
-    （在 `utils/http.go` 的本地设备头覆盖逻辑里，不入生产补丁）。
+  - 上游用请求头 **`local-time`** 校验进度写入；固定旧值或格式不符会导致 `200` 但静默丢弃。xyz 已在 `utils/http.go`
+    对每个上游请求无条件动态生成（对齐 App 格式：毫秒 + 无冒号时区），已纳入生产补丁（见 §21）。
   - 浏览器禁止无手势自动播放：恢复后是**暂停态**（播放条显示原进度），用户点一下播放即从原进度继续。
 - **Mock**：`episode_played_history_list`（最近一集 mock-eid）、`playback_progress_list`（120s）、
   `playback_progress_update` / `episode_played_create` 四个 handler；首次打开 mock 页面即可看到续听恢复。
@@ -752,7 +752,11 @@ nginx -t（容器内，/api 反代）→ ✅ syntax is ok / test is successful
   - `outbox.enqueueOutbox` 的 delete+add 事务化；`reschedule` 去掉超限时的重复 update；`pruneStaleCache` 注释按实际「写入时间」语义修正。
 - **后端补丁修复（重要）**：原 `notification-endpoints.patch` **漏了 `handlers/playback.go`**——router 引用了 `PlaybackProgressList` 等 handler 但补丁未创建该文件，
   在干净上游 `git apply` 后 `go build` 会因未定义 handler 失败。本次重新生成补丁纳入 `playback.go`（含新增 `EpisodePlayedListForCache`），
-  补丁现为 **22 条代理路由 / 18145 B**（原 21 条 / 16393 B）。`utils/http.go` 的 `local-time` 动态生成仍按既有决定不入生产补丁。
+  补丁现为 **22 条代理路由 / 20117 B**（原 21 条 / 16393 B），含 `handlers/playback.go`。
+- **local-time 生产修复**：抓包确认 App 的 `local-time` 格式是 `2026-11-11T21:57:37.943+0800`（毫秒 + 无冒号时区），
+  而 `notificationHeaders` 默认的 `...Z07:00`（无毫秒、时区带冒号）会让上游对进度写入「200 但静默丢弃」。
+  `utils/http.go` 现对**每个上游请求无条件**覆盖 `Local-Time` 为当前时间（App 格式），不再依赖 `XYZ_EXTRA_HEADERS`，已纳入补丁；
+  compose 后端设 `TZ=Asia/Shanghai` 使偏移为 `+0800`。
 - **验证**：
   - `pnpm lint`、`tsc -b && vite build` 全绿；本机后端与干净 worktree（pin `22cfe78`）apply 补丁后 `go build` 均通过；`docker compose config` 校验通过；
   - mock 模式真实浏览器实测：Dexie v2 迁移建表 ✓、首同步建库 + 游标 ✓、同版本二次同步 no-op（`syncedAt` 不变、不重拉）✓、

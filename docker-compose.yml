@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: backend.Dockerfile
+    environment:
+      # 与 App 一致用东八区：utils/http.go 每请求动态生成 local-time（+0800），避免进度写入被上游静默丢弃
+      TZ: Asia/Shanghai
     expose:
       - 23020
     restart: unless-stopped

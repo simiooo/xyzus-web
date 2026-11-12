@@ -49,7 +49,7 @@ cd xyzus-web
 docker compose up -d --build
 ```
 
-第一次会联网构建几分钟（自动装好前端和补丁后端），耐心等它跑完。完成后：
+第一次会联网**构建前端 + 拉取现成的后端镜像**，几分钟即可（后端是公有预构建镜像，无需本地编译）。完成后：
 
 - **本机访问**：浏览器打开 <http://localhost:8080/>
 - **局域网访问**（手机 / 其它电脑）：打开 `http://<主机IP>:8080/`（见下方「配置」）
@@ -102,8 +102,8 @@ docker compose up -d --build    # 更新代码后重新构建
 
 1. **探测环境**：OS / 架构 + 网络判定国内外（google 不通而 baidu 通 → 国内）。
 2. **装依赖**：Git；Docker + Compose v2（Windows 先 WSL2，Linux 用 `get.docker.com`，国内 `--mirror Aliyun`）。
-3. **国内配镜像**：registry-mirrors（DaoCloud 等，需实测）；GOPROXY / npm 已内置无需改；GitHub clone 兜底。
-4. **克隆 + 启动**：`git clone … && docker compose up -d --build`。
+3. **国内配镜像**：Docker Hub registry-mirrors（DaoCloud 等，需实测，用于前端基础镜像）；后端镜像来自 `ghcr.io`，国内拉取失败时用代理或离线 fallback（`backend.Dockerfile`）。
+4. **克隆 + 启动**：`git clone … && docker compose up -d --build`（构建前端 + 拉取后端镜像）。
 5. **验证**：`docker compose ps` + 本机 `http://localhost:8080/` + 局域网 `http://<主机IP>:8080/` + 扫码登录。
 
 > 完整命令、镜像地址清单、WSL2 / 虚拟化排查、常见坑自查表见 **[docs/AGENT-DEPLOY.md](docs/AGENT-DEPLOY.md)**。

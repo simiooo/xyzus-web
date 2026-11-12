@@ -1,4 +1,8 @@
-# 自建 xyz 后端（https://github.com/ultrazg/xyz）
+# 【可选 fallback】本地 / 离线构建 xyz 后端（https://github.com/ultrazg/xyz）
+#
+# 默认部署不需要本文件：docker-compose.yml 的 backend 直接拉取公有预构建镜像
+# ghcr.io/simiooo/xyzus-backend（由后端仓库 CI 发布，多架构）。本文件仅用于
+# 无 registry 访问时自行构建：克隆上游 + apply backend-patches/ 补丁。
 #
 # 本项目的接口层契约是按 xyz v1.10.3 / commit 22cfe78 实测校准的，
 # 所以这里钉住 commit，避免上游 `dev` 分支变动导致契约漂移。

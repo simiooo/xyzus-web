@@ -43,20 +43,27 @@
 ```
 
 - `Dockerfile`：Node 24 + pnpm 10 构建 `dist`，nginx 托管；`.env.production` 的 `VITE_API_BASE_URL=/api`。
-- `backend.Dockerfile`：**钉住** xyz commit `22cfe78`（v1.10.3 实测版本），`GOPROXY=https://goproxy.cn,direct`，默认监听 23020。
+- **后端镜像（默认拉取，不本地构建）**：`docker-compose.yml` 的 backend 用 `image: ghcr.io/simiooo/xyzus-backend:<tag>`，
+  直接拉取公有预构建镜像（多架构 amd64/arm64）。镜像由后端仓库 [simiooo/xyzus-backend](https://github.com/simiooo/xyzus-backend)
+  的 GitHub Actions（`.github/workflows/docker.yml`）构建并发布到 GHCR，tags `latest` / `sha-<commit>` / `v*`。
+  部署机无需装 Go / clone 上游；compose 钉住 `sha-<commit>` 保证可复现。
 - `nginx.conf`：`location /api/ { proxy_pass http://backend:23020/; }`（剥离 `/api`），其余交 SPA。
-- `docker-compose.yml`：`frontend:8080 → 80`，`backend` 只 `expose 23020`，后端 `TZ=Asia/Shanghai`。
+- `docker-compose.yml`：`frontend:8080 → 80`（本地构建），`backend` 拉取镜像、只 `expose 23020`，`TZ=Asia/Shanghai`。
 
 ```bash
 docker compose config          # 校验配置
-docker compose up -d --build   # 构建并启动
+docker compose up -d --build   # 构建前端 + 拉取后端镜像并启动
 docker compose ps / logs -f    # 查看状态/日志
 docker compose down            # 停止
 ```
 
-**注意**：`backend.Dockerfile` 构建时会 clone 上游仓库（需能访问 GitHub）；国内网络下已配置 GOPROXY 镜像。
-clone 之后会应用 `backend-patches/notification-endpoints.patch`（22 条代理端点 + local-time 修复，见 [FEATURES.md](FEATURES.md)），
-所以新增后端端点不需要 fork 上游，改补丁文件即可。
+**后端源码与补丁**：后端 = 上游 xyz `22cfe78` + 22 条代理端点 + local-time 修复，已作为公有仓库
+[simiooo/xyzus-backend](https://github.com/simiooo/xyzus-backend) 维护（补丁即其 git 历史）。
+升级后端：在该仓库提交 → CI 自动出新镜像 → 把 compose 的 tag bump 到新 `sha-<commit>`（或 `latest`）。
+
+**离线 / 本地构建 fallback**：无 registry 访问时，可用本仓库 `backend.Dockerfile`（克隆上游 `22cfe78` +
+apply `backend-patches/notification-endpoints.patch`，`GOPROXY=goproxy.cn`）自行构建后端镜像，
+再把 compose 的 backend 改回 `build:`。国内网络下该 fallback 需能访问 GitHub（见 [AGENT-DEPLOY.md](AGENT-DEPLOY.md)）。
 
 > 后端 `utils/http.go` 每请求动态生成 `local-time`（对齐 App 格式），保证播放进度跨端同步不被上游静默丢弃，
 > 详见 [FEATURES.md](FEATURES.md) 的「最近收听增量同步 + 补丁修复」一节。

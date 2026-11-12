@@ -118,9 +118,10 @@ docker run --rm hello-world && docker compose version
 
 ## 5. 第四步（仅国内）：配置镜像加速
 
-> 国外分支跳过本节，直接第 6 节。本项目的 **Go 模块代理与 npm 源已在 Dockerfile 内置**
-> （`backend.Dockerfile` 的 `GOPROXY=https://goproxy.cn,direct`、`Dockerfile` 的 `registry.npmmirror.com`），
-> **无需再改**；这里要解决的是 **拉取基础镜像**（`golang:1.26-alpine` / `node:24-alpine` / `nginx:alpine` / `alpine:3.20`）与 **构建时 clone GitHub**。
+> 国外分支跳过本节，直接第 6 节。默认部署下**后端是公有预构建镜像**（`ghcr.io/simiooo/xyzus-backend`，直接拉取、不本地编译），
+> 前端在本地构建（npm 源已内置 `registry.npmmirror.com`）。所以这里要解决两件事：
+> **A. 拉取前端基础镜像**（`node:24-alpine` / `nginx:alpine`，来自 Docker Hub）；**B. 拉取后端镜像**（来自 ghcr.io）。
+> 仅当改用离线 fallback `backend.Dockerfile` 本地构建后端时，才需要 GOPROXY=goproxy.cn 与 clone GitHub（见 B 末尾）。
 
 ### A. Docker Hub 镜像加速（registry-mirrors）
 
@@ -152,12 +153,13 @@ docker info | grep -A3 "Registry Mirrors"   # 列出你配的地址＝引擎已�
 docker pull alpine:latest                    # 拉取层地址应指向镜像源域名，而非 registry-1.docker.io
 ```
 
-### B. 构建时 clone GitHub（backend.Dockerfile 会 `git clone ultrazg/xyz`）
+### B. 拉取后端镜像（ghcr.io）
 
-国内访问 GitHub 可能慢或失败。按优先级处理：
-1. **先直接试**：很多国内网络能连 GitHub（只是慢），`docker compose up -d --build` 直接跑，clone 成功就无需折腾。
-2. **用已有代理**：若用户有 HTTP/git 代理，给 Docker 引擎 / 构建配代理（Docker Desktop → Settings → Resources → Proxies）。
-3. **覆盖仓库地址**（`backend.Dockerfile` 暴露了 `ARG XYZ_REPO` / `XYZ_REF`）：在 `docker-compose.yml` 的 `backend.build` 下加 `args`，把上游换成**实测可用的 GitHub 镜像**：
+后端镜像在 `ghcr.io/simiooo/xyzus-backend`（公有、匿名可拉、多架构 amd64/arm64）。
+1. **先直接试**：`docker pull ghcr.io/simiooo/xyzus-backend:latest`。很多国内网络能直连 ghcr.io（本项目构建机实测可达）。
+2. **拉取失败时用代理**：给 Docker 引擎配 HTTP 代理（Docker Desktop → Settings → Resources → Proxies），或走用户已有的梯子。
+3. **关于 ghcr 镜像站**：DaoCloud 的 `ghcr.m.daocloud.io` **只代理白名单内的热门镜像**，本镜像不在白名单（实测返回 "not in the allowlist"），**不要用它**；其它 ghcr 镜像站同理需先实测。
+4. **离线 fallback（不依赖 ghcr）**：把 compose 的 backend 改回 `build:`（用本仓库 `backend.Dockerfile`，克隆上游 `22cfe78` + apply 补丁，GOPROXY 已内置 goproxy.cn）。此时需能访问 GitHub：先直接试 clone，失败用代理，或覆盖 `XYZ_REPO` 为**实测可用的 GitHub 镜像**（`backend.Dockerfile` 暴露了 `ARG XYZ_REPO`/`XYZ_REF`）：
    ```yaml
    backend:
      build:
@@ -176,15 +178,15 @@ docker pull alpine:latest                    # 拉取层地址应指向镜像源
 ## 6. 第五步：克隆仓库 + 一键起
 
 ```bash
-git clone https://github.com/simiooo/xyzus-web.git   # 国内慢/失败时同第 5 节 B 用代理或 GitHub 镜像（需实测）
+git clone https://github.com/simiooo/xyzus-web.git   # 国内慢/失败时用代理或 GitHub 镜像（需实测）
 cd xyzus-web
 docker compose up -d --build
 ```
 
-- 一条命令同时构建**前端**（`pnpm build` → nginx，npm 源已内置 npmmirror）与**补丁后端**
-  （clone 上游 `22cfe78` → apply `backend-patches/` 的 22 条代理端点 + local-time 修复 → `go build`，GOPROXY 已内置 goproxy.cn）。
+- 一条命令**构建前端**（`pnpm build` → nginx，npm 源已内置 npmmirror）并**拉取后端公有镜像**
+  （`ghcr.io/simiooo/xyzus-backend`，含 22 条代理端点 + local-time 修复，多架构；后端不在本地编译）。
 - 前端 `8080:80`，后端只 `expose 23020`（不对外），后端 `TZ=Asia/Shanghai`。
-- **不需要**手动起后端、不需要装 Node/Go/pnpm（都在镜像里）。
+- **不需要**手动起后端、不需要装 Go（后端是现成镜像）；前端构建在镜像里完成，本机也不用装 Node/pnpm。
 
 ## 7. 第六步：验证
 
@@ -204,13 +206,14 @@ docker compose logs --tail=30 backend          # 无 panic / 监听 23020
 
 | 现象 | 原因 / 处理 |
 |---|---|
-| `docker pull` 基础镜像超时 / `registry-1.docker.io` 不通 | 国内未配 registry-mirrors，或配了已失效源；按第 5 节 A 配 DaoCloud 并 `docker pull alpine` 实测 |
-| 构建卡在 `git clone ultrazg/xyz` | 国内 GitHub 不通；按第 5 节 B 用代理或实测可用的 GitHub 镜像覆盖 `XYZ_REPO` |
-| `go mod download` 失败 | GOPROXY 已内置 goproxy.cn，通常是镜像源没生效或网络全断；先解决基础网络 |
+| `docker pull` 前端基础镜像超时 / `registry-1.docker.io` 不通 | 国内未配 registry-mirrors，或配了已失效源；按第 5 节 A 配 DaoCloud 并 `docker pull alpine` 实测 |
+| 拉取后端镜像 `ghcr.io/...` 失败 | 国内 ghcr 不通；用代理（第 5 节 B），或改离线 fallback；DaoCloud ghcr 镜像站本镜像不在白名单、不可用 |
+| （仅离线 fallback）构建卡在 `git clone ultrazg/xyz` | 国内 GitHub 不通；按第 5 节 B.4 用代理或实测可用的 GitHub 镜像覆盖 `XYZ_REPO` |
+| （仅离线 fallback）`go mod download` 失败 | GOPROXY 已内置 goproxy.cn，通常是镜像源没生效或网络全断；先解决基础网络 |
 | Docker Desktop 启动报 `virtualisation support was not detected` | BIOS 未开 VT-x/AMD-V，或 WSL2/虚拟机平台未启用；按第 4 节 Windows 处理 |
 | `wsl` 命令报错 / 内核太旧 | 管理员 `wsl --update`；仍不行 `wsl --install` 后重启 |
 | 配了镜像源但 `docker pull` 仍走官方源 | JSON 格式错误被引擎丢弃，或 Desktop 未 Apply & Restart；`docker info` 核对 + 重拉验证 |
 | 8080 端口被占用 | 改 `docker-compose.yml` 的 `frontend.ports`（如 `18080:80`）后重新 `up -d` |
 | `all predefined address pools have been fully subnetted` | 主机 docker 网络过多（常见于跑了多个项目的构建机）；`docker network ls` 排查，`docker network prune` 清理**确认无用**的网络（勿误删在用网络） |
 | 页面能开但接口 502 | 后端没起 / 还在构建；`docker compose ps` + `logs backend` 确认监听 23020 |
-| 接口 404（首页 tab / 评论增强 / 增量同步等） | 后端没打 22 条补丁；确认用的是本仓库 `backend.Dockerfile` 重新 `up -d --build`（见 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)） |
+| 接口 404（首页 tab / 评论增强 / 增量同步等） | 后端镜像不对（没含 22 条补丁）；确认 compose 用 `ghcr.io/simiooo/xyzus-backend` 并 `up -d` 重新拉取；离线 fallback 则用 `backend.Dockerfile` 重新构建（见 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)） |

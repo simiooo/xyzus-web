@@ -83,7 +83,9 @@ No test suite, no formatter config, no CI, no pre-commit hooks.
   Phase 2 用 outbox（`src/db/outbox.ts`）承接播放进度/星标/订阅写入，同 key 合并最新、700ms 调度、15s 兜底、
   失败指数退避；`useLocalSync` 负责启动清理与自动 flush。增量同步（`src/db/sync.ts` + `playedCache` 表，DB v2）
   对齐 App `list-for-cache` 版本游标：`needRefresh` 才整体替换最近收听本地库并推进 `syncMeta` 游标；登出经 `clearAccountCache` 整号清理。缓存是加速层，写成功仍以服务端为准。
-- **后端补丁**: 以上通知 / 首页 / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步 / 最近收听增量同步共 22 条代理路由都在
-  `backend-patches/notification-endpoints.patch`（20117 B，含 `handlers/playback.go` 与 `utils/http.go` 的 local-time 修复），`backend.Dockerfile` 在 pin 住的上游 commit 上自动 apply。
+- **后端补丁与镜像**: 以上通知 / 首页 / 相关单集 / 收件箱 v2 / 评论增强 / AI / 关注动态 / 播放同步 / 最近收听增量同步共 22 条代理路由
+  （含 `handlers/playback.go` 与 `utils/http.go` 的 local-time 修复）已作为公有仓库 [simiooo/xyzus-backend](https://github.com/simiooo/xyzus-backend) 维护，
+  其 GitHub Actions CI 构建多架构镜像发布到 `ghcr.io/simiooo/xyzus-backend`；`docker-compose.yml` 的 backend **默认拉取该镜像**（钉 `sha-<commit>`，部署机不本地编译后端）。
+  上游 diff 留档在 `backend-patches/notification-endpoints.patch`（20117 B）；离线 / 本地构建 fallback 用 `backend.Dockerfile`（pin 上游 commit + apply 补丁）。
 - **Env**: `VITE_API_BASE_URL`（`.env` / `.env.development` / `.env.production`），
   `VITE_API_MOCK=1` 启用离线 mock。

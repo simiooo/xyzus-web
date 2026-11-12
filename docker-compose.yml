@@ -1,10 +1,10 @@
 services:
-  # 后端：钉住上游 xyz commit，构建时 apply backend-patches/ 的 22 条代理端点补丁
-  # （含最近收听增量同步 /episode_played_list_for_cache），见 backend.Dockerfile。
+  # 后端：直接拉取公有预构建镜像（多架构 amd64/arm64），由后端仓库 simiooo/xyzus-backend
+  # 的 GitHub Actions CI 发布到 ghcr.io（含 22 条代理端点 + local-time 修复）。
+  # 部署机无需本地构建后端 / 装 Go / clone 上游。升级后端：在后端仓库提交 → CI 出新镜像 → 改下方 tag。
+  # 离线 / 本地构建 fallback 见 backend.Dockerfile（克隆上游 + apply backend-patches/）。
   backend:
-    build:
-      context: .
-      dockerfile: backend.Dockerfile
+    image: ghcr.io/simiooo/xyzus-backend:sha-32ac616
     environment:
       # 与 App 一致用东八区：utils/http.go 每请求动态生成 local-time（+0800），避免进度写入被上游静默丢弃
       TZ: Asia/Shanghai

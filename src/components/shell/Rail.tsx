@@ -5,7 +5,6 @@ import AppearanceSwitch from './AppearanceSwitch'
 import BrandLogo from '@/components/ui/BrandLogo'
 import AccountMenu from './AccountMenu'
 import UnreadBadge from './UnreadBadge'
-import useAuthStore from '@/stores/authStore'
 import useAudioStore from '@/stores/audioStore'
 
 /**
@@ -14,7 +13,6 @@ import useAudioStore from '@/stores/audioStore'
 export default function Rail() {
   const navigate = useNavigate()
   const location = useLocation()
-  const user = useAuthStore((s) => s.user)
   const hasEpisode = Boolean(useAudioStore((s) => s.currentEpisode))
 
   return (
@@ -69,18 +67,10 @@ export default function Rail() {
         </div>
         {/* 播放条可见时，这条点线与播放条的上边缘同高、铺满左栏宽度，和播放条顶边接成一条线 */}
         <div
-          className="dotted-top -mx-6 flex items-center gap-2.5 px-6"
+          className="dotted-top -mx-6 px-6"
           style={{ paddingTop: hasEpisode ? 26 : 16 }}
         >
-          <AccountMenu placement="topLeft" />
-          <div className="min-w-0 flex-1">
-            <p className="m-0 type-manage line-clamp-1 text-[var(--ink)]">
-              {user?.nickname ?? '未登录'}
-            </p>
-            <p className="m-0 mt-0.5 type-meta line-clamp-1">
-              {user?.ipLoc ? `${user.ipLoc} · 账号菜单` : '账号菜单'}
-            </p>
-          </div>
+          <AccountMenu placement="topLeft" row />
         </div>
       </div>
     </aside>

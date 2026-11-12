@@ -12,10 +12,12 @@ interface AccountMenuProps {
   className?: string
   /** 菜单弹出方向：顶栏头像用默认 bottomRight；左栏底部头像需 topLeft（向上、向右展开，避免弹出屏幕外） */
   placement?: DropdownProps['placement']
+  /** 整行入口：头像 + 昵称 + 提示整行可点（左栏底部），默认只点头像 */
+  row?: boolean
 }
 
 /** 账号入口：头像 + 下拉（个人资料、收藏、退出登录） */
-export default function AccountMenu({ compact = false, className = '', placement = 'bottomRight' }: AccountMenuProps) {
+export default function AccountMenu({ compact = false, className = '', placement = 'bottomRight', row = false }: AccountMenuProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -112,6 +114,29 @@ export default function AccountMenu({ compact = false, className = '', placement
     </div>
   )
 
+  // -my-2 抵消 py-2：悬停底向上下多铺 8px，但整行占位高度不变，点线位置不漂移
+  const trigger = row ? (
+    <button
+      type="button"
+      aria-label="账号菜单"
+      className={`-mx-3 -my-2 flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-left transition-colors hover:bg-[var(--sunken)] ${className}`}
+    >
+      {avatarNode}
+      <span className="min-w-0 flex-1">
+        <span className="type-manage line-clamp-1 block text-[var(--ink)]">
+          {user?.nickname ?? '未登录'}
+        </span>
+        <span className="type-meta mt-0.5 line-clamp-1 block">
+          {user?.ipLoc ? `${user.ipLoc} · 账号菜单` : '账号菜单'}
+        </span>
+      </span>
+    </button>
+  ) : (
+    <div className={className} aria-label="账号菜单">
+      {avatarNode}
+    </div>
+  )
+
   return (
     <Dropdown
       menu={{ items }}
@@ -120,9 +145,7 @@ export default function AccountMenu({ compact = false, className = '', placement
       open={open}
       onOpenChange={setOpen}
     >
-      <div className={className} aria-label="账号菜单">
-        {avatarNode}
-      </div>
+      {trigger}
     </Dropdown>
   )
 }

@@ -1,10 +1,11 @@
-import { useNavigate, useLocation } from 'react-router'
+import { useNavigate, useLocation, Link } from 'react-router'
 import { NAV_ITEMS, isNavActive } from './nav'
 import ThemeSwitch from './ThemeSwitch'
 import AppearanceSwitch from './AppearanceSwitch'
 import BrandLogo from '@/components/ui/BrandLogo'
-import AccountMenu from './AccountMenu'
+import AccountMenu, { AccountAvatar } from './AccountMenu'
 import UnreadBadge from './UnreadBadge'
+import useAuthStore from '@/stores/authStore'
 import useAudioStore from '@/stores/audioStore'
 
 /**
@@ -13,6 +14,7 @@ import useAudioStore from '@/stores/audioStore'
 export default function Rail() {
   const navigate = useNavigate()
   const location = useLocation()
+  const user = useAuthStore((s) => s.user)
   const hasEpisode = Boolean(useAudioStore((s) => s.currentEpisode))
 
   return (
@@ -70,7 +72,25 @@ export default function Rail() {
           className="dotted-top -mx-6 px-6"
           style={{ paddingTop: hasEpisode ? 26 : 16 }}
         >
-          <AccountMenu placement="topLeft" row />
+          {/* -my-2 抵消 py-2：悬停底多铺 8px 但占位高度不变，点线位置不漂移 */}
+          <div className="-mx-3 -my-2 flex items-center gap-1 rounded-xl px-3 py-2 transition-colors hover:bg-[var(--sunken)]">
+            <Link
+              to="/profile"
+              aria-label="查看个人资料"
+              className="flex min-w-0 flex-1 items-center gap-2.5 no-underline"
+            >
+              <AccountAvatar />
+              <span className="min-w-0 flex-1">
+                <span className="type-manage line-clamp-1 block text-[var(--ink)]">
+                  {user?.nickname ?? '未登录'}
+                </span>
+                <span className="type-meta mt-0.5 line-clamp-1 block">
+                  {user?.ipLoc ? `${user.ipLoc} · 查看个人资料` : '查看个人资料'}
+                </span>
+              </span>
+            </Link>
+            <AccountMenu placement="topLeft" variant="more" />
+          </div>
         </div>
       </div>
     </aside>

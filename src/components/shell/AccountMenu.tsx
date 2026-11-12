@@ -1,23 +1,48 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Avatar, Dropdown } from 'antd'
-import { ChevronRight, Heart, LogOut, MessageSquare, Settings, User, Users } from 'lucide-react'
+import { Dropdown } from 'antd'
+import { ChevronRight, Heart, LogOut, MessageSquare, MoreHorizontal, Settings, User, Users } from 'lucide-react'
 import type { DropdownProps, MenuProps } from 'antd'
 import useAuthStore from '@/stores/authStore'
 import SmartImage from '@/components/ui/SmartImage'
 import ThemeSwitch from './ThemeSwitch'
 
+/** 头像：有图用图，没图灰底人形 */
+export function AccountAvatar({ className = 'h-9 w-9' }: { className?: string }) {
+  const user = useAuthStore((s) => s.user)
+  return user?.avatar?.picture ? (
+    <SmartImage
+      image={user.avatar.picture}
+      aspectRatio={1}
+      rounded="full"
+      className={`${className} flex-shrink-0`}
+      alt={user.nickname}
+    />
+  ) : (
+    <div
+      className={`${className} flex flex-shrink-0 items-center justify-center rounded-full bg-[var(--muted)]`}
+    >
+      <User size={17} strokeWidth={1.75} style={{ color: 'var(--muted-foreground)' }} />
+    </div>
+  )
+}
+
 interface AccountMenuProps {
   compact?: boolean
   className?: string
-  /** 菜单弹出方向：顶栏头像用默认 bottomRight；左栏底部头像需 topLeft（向上、向右展开，避免弹出屏幕外） */
+  /** 菜单弹出方向：顶栏头像用默认 bottomRight；左栏底部需 topLeft（向上、向右展开，避免弹出屏幕外） */
   placement?: DropdownProps['placement']
-  /** 整行入口：头像 + 昵称 + 提示整行可点（左栏底部），默认只点头像 */
-  row?: boolean
+  /** 触发器形态：头像（顶栏）或行尾 ⋯ 按钮（左栏底部行） */
+  variant?: 'avatar' | 'more'
 }
 
-/** 账号入口：头像 + 下拉（个人资料、收藏、退出登录） */
-export default function AccountMenu({ compact = false, className = '', placement = 'bottomRight', row = false }: AccountMenuProps) {
+/** 账号菜单：个人资料、收藏、主题色、退出登录 */
+export default function AccountMenu({
+  compact = false,
+  className = '',
+  placement = 'bottomRight',
+  variant = 'avatar',
+}: AccountMenuProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -28,19 +53,7 @@ export default function AccountMenu({ compact = false, className = '', placement
       key: 'profile',
       label: (
         <div className="flex items-center gap-2.5 py-1 pr-2">
-          {user?.avatar?.picture ? (
-            <SmartImage
-              image={user.avatar.picture}
-              aspectRatio={1}
-              rounded="full"
-              className="h-9 w-9 flex-shrink-0"
-              alt={user.nickname}
-            />
-          ) : (
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--muted-strong)]">
-              <User size={18} strokeWidth={1.75} style={{ color: 'var(--muted-foreground)' }} />
-            </div>
-          )}
+          <AccountAvatar />
           <div className="min-w-0 flex-1">
             <p className="m-0 type-manage line-clamp-1 text-[var(--ink)]">{user?.nickname || '未登录'}</p>
             <p className="m-0 mt-0.5 type-meta">{user?.ipLoc ? `${user.ipLoc} · ` : ''}查看个人资料</p>
@@ -79,7 +92,11 @@ export default function AccountMenu({ compact = false, className = '', placement
     {
       key: 'theme',
       label: (
-        <div className="flex items-center justify-between gap-3 py-1 pr-1">
+        // 阻断冒泡：否则点主题色会触发 menu item 点击，连带收起下拉
+        <div
+          className="flex items-center justify-between gap-3 py-1 pr-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <span className="type-manage text-[var(--ink)]">主题色</span>
           <ThemeSwitch />
         </div>
@@ -98,44 +115,21 @@ export default function AccountMenu({ compact = false, className = '', placement
     },
   ]
 
-  const avatarNode = user?.avatar?.picture ? (
-    <SmartImage
-      image={user.avatar.picture}
-      aspectRatio={1}
-      rounded="full"
-      className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} flex-shrink-0 cursor-pointer`}
-      alt={user.nickname}
-    />
-  ) : (
-    <div
-      className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full bg-[var(--muted)] transition-colors hover:bg-[var(--muted-hover)]`}
-    >
-      <User size={compact ? 15 : 17} strokeWidth={1.75} style={{ color: 'var(--muted-foreground)' }} />
-    </div>
-  )
-
-  // -my-2 抵消 py-2：悬停底向上下多铺 8px，但整行占位高度不变，点线位置不漂移
-  const trigger = row ? (
-    <button
-      type="button"
-      aria-label="账号菜单"
-      className={`-mx-3 -my-2 flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-0 bg-transparent px-3 py-2 text-left transition-colors hover:bg-[var(--sunken)] ${className}`}
-    >
-      {avatarNode}
-      <span className="min-w-0 flex-1">
-        <span className="type-manage line-clamp-1 block text-[var(--ink)]">
-          {user?.nickname ?? '未登录'}
-        </span>
-        <span className="type-meta mt-0.5 line-clamp-1 block">
-          {user?.ipLoc ? `${user.ipLoc} · 账号菜单` : '账号菜单'}
-        </span>
-      </span>
-    </button>
-  ) : (
-    <div className={className} aria-label="账号菜单">
-      {avatarNode}
-    </div>
-  )
+  const trigger =
+    variant === 'more' ? (
+      <button
+        type="button"
+        aria-label="账号菜单"
+        className={`flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-colors hover:bg-[var(--muted)] ${className}`}
+        style={{ color: 'var(--faint)' }}
+      >
+        <MoreHorizontal size={16} strokeWidth={1.75} />
+      </button>
+    ) : (
+      <div className={className} aria-label="账号菜单">
+        <AccountAvatar className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} cursor-pointer`} />
+      </div>
+    )
 
   return (
     <Dropdown
@@ -149,9 +143,3 @@ export default function AccountMenu({ compact = false, className = '', placement
     </Dropdown>
   )
 }
-
-function AvatarFallback() {
-  return <Avatar icon={<User size={16} strokeWidth={1.75} />} />
-}
-
-export { AvatarFallback }

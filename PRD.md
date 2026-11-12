@@ -9,7 +9,7 @@
 >
 > - 界面：白底墨字的极简语言、蓝/粉两版强调色（只用于播放）、新布局与图片渐进加载
 >   → [`docs/DESIGN.md`](docs/DESIGN.md)
-> - 接口契约、归一化规则、登录风控与部署 → [`README.md`](README.md)（§4 契约总表、§5 登录、§8 部署）
+> - 接口契约与归一化规则 → [`docs/API.md`](docs/API.md)；登录风控与各功能实现 → [`docs/FEATURES.md`](docs/FEATURES.md)；架构与部署 → [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（用户安装/使用见 [`README.md`](README.md)）
 >
 > 产品范围（认证、内容浏览与搜索、评论互动三大模块）与本文一致；新增了订阅列表页、播放器
 > （播放条 + 展开面板）、主题切换与离线 Mock 数据层。

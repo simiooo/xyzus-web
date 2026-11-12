@@ -72,7 +72,7 @@ export default function Rail() {
           className="dotted-top -mx-6 flex items-center gap-2.5 px-6"
           style={{ paddingTop: hasEpisode ? 26 : 16 }}
         >
-          <AccountMenu />
+          <AccountMenu placement="topLeft" />
           <div className="min-w-0 flex-1">
             <p className="m-0 type-manage line-clamp-1 text-[var(--ink)]">
               {user?.nickname ?? '未登录'}

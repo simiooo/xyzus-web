@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Avatar, Dropdown } from 'antd'
 import { ChevronRight, Heart, LogOut, MessageSquare, Settings, User, Users } from 'lucide-react'
-import type { MenuProps } from 'antd'
+import type { DropdownProps, MenuProps } from 'antd'
 import useAuthStore from '@/stores/authStore'
 import SmartImage from '@/components/ui/SmartImage'
 import ThemeSwitch from './ThemeSwitch'
@@ -10,10 +10,12 @@ import ThemeSwitch from './ThemeSwitch'
 interface AccountMenuProps {
   compact?: boolean
   className?: string
+  /** 菜单弹出方向：顶栏头像用默认 bottomRight；左栏底部头像需 topLeft（向上、向右展开，避免弹出屏幕外） */
+  placement?: DropdownProps['placement']
 }
 
-/** 账号入口：头像 + 下拉（收藏、退出登录） */
-export default function AccountMenu({ compact = false, className = '' }: AccountMenuProps) {
+/** 账号入口：头像 + 下拉（个人资料、收藏、退出登录） */
+export default function AccountMenu({ compact = false, className = '', placement = 'bottomRight' }: AccountMenuProps) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -113,7 +115,7 @@ export default function AccountMenu({ compact = false, className = '' }: Account
   return (
     <Dropdown
       menu={{ items }}
-      placement="bottomRight"
+      placement={placement}
       trigger={['click']}
       open={open}
       onOpenChange={setOpen}

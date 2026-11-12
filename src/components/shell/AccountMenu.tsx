@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Avatar, Dropdown } from 'antd'
-import { Heart, LogOut, MessageSquare, Settings, User, Users } from 'lucide-react'
+import { ChevronRight, Heart, LogOut, MessageSquare, Settings, User, Users } from 'lucide-react'
 import type { MenuProps } from 'antd'
 import useAuthStore from '@/stores/authStore'
 import SmartImage from '@/components/ui/SmartImage'
@@ -37,13 +37,14 @@ export default function AccountMenu({ compact = false, className = '' }: Account
               <User size={18} strokeWidth={1.75} style={{ color: 'var(--muted-foreground)' }} />
             </div>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="m-0 type-manage line-clamp-1 text-[var(--ink)]">{user?.nickname || '未登录'}</p>
-            {user?.ipLoc && <p className="m-0 mt-0.5 type-meta">{user.ipLoc}</p>}
+            <p className="m-0 mt-0.5 type-meta">{user?.ipLoc ? `${user.ipLoc} · ` : ''}查看个人资料</p>
           </div>
+          <ChevronRight size={16} strokeWidth={1.75} className="flex-shrink-0" style={{ color: 'var(--faint)' }} />
         </div>
       ),
-      disabled: true,
+      onClick: () => navigate('/profile'),
     },
     { type: 'divider' },
     {

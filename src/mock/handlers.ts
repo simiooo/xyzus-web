@@ -755,6 +755,17 @@ function handleProfile(): unknown {
   return mockProfileResponse
 }
 
+function handleUserStats(): unknown {
+  return {
+    data: {
+      followerCount: 128,
+      followingCount: 36,
+      subscriptionCount: 9,
+      totalPlayedSeconds: 505379,
+    },
+  }
+}
+
 function handleLogin(): unknown {
   return mockLoginResponse
 }
@@ -797,6 +808,7 @@ const handlers: Record<string, MockHandler> = {
   login: handleLogin,
   refresh_token: handleRefreshToken,
   profile: handleProfile,
+  user_stats: handleUserStats,
   discovery: handleDiscovery,
   top_list: handleTopList,
   editor_pick_list_history: handleEditorPickHistory,

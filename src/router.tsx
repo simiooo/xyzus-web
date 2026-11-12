@@ -20,6 +20,7 @@ const Subscriptions = lazy(() => import('@/pages/Subscriptions'))
 const Inbox = lazy(() => import('@/pages/Inbox'))
 const MyComments = lazy(() => import('@/pages/MyComments'))
 const Following = lazy(() => import('@/pages/Following'))
+const Profile = lazy(() => import('@/pages/Profile'))
 
 /** 路由懒加载的占位：用骨架，不用居中的转圈 */
 function PageFallback() {
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
       { path: 'my-comments', element: <LazyLoad><MyComments /></LazyLoad> },
       { path: 'following', element: <LazyLoad><Following /></LazyLoad> },
       { path: 'favorites', element: <LazyLoad><Favorites /></LazyLoad> },
+      { path: 'profile', element: <LazyLoad><Profile /></LazyLoad> },
     ],
   },
   {

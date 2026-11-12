@@ -12,6 +12,17 @@ import type { PickRecentItem, PickRecentParams, UserProfile } from '@/api/types'
 export const getProfileAPI = () =>
   alova.Post<unknown>('/profile').then((raw) => unwrapData<UserProfile>(raw))
 
+/** 用户统计数据（/user_stats，body `{uid}`）：粉丝 / 关注 / 订阅数 + 总收听秒数。 */
+export interface UserStats {
+  followerCount: number
+  followingCount: number
+  subscriptionCount: number
+  totalPlayedSeconds: number
+}
+
+export const userStatsAPI = (uid: string) =>
+  alova.Post<unknown>('/user_stats', { uid }).then((raw) => unwrapData<UserStats>(raw))
+
 export const pickRecentAPI = (params: PickRecentParams) =>
   alova
     .Post<PickRecentItem[]>('/pick_list_recent', params)

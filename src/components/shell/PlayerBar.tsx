@@ -43,14 +43,16 @@ export default function PlayerBar() {
 
   return (
     <div className="pointer-events-none fixed bottom-[var(--tabbar-h)] left-0 right-0 z-[41] lg:bottom-0">
-      {/* 与外壳同宽居中：左栏位置用 padding 让出来，超宽屏下和内容区对齐 */}
-      <div className="pointer-events-auto mx-auto w-full max-w-[var(--shell-max)] lg:pl-[var(--rail)]">
+      {/* 与外壳同宽居中：左栏位置用 padding 让出来，超宽屏下和内容区对齐。
+          注意 auto 只能加在可见内容行上：padding 让出的透明区域若可命中，
+          会盖住左栏底部账号行，导致「看得见点不着」。 */}
+      <div className="mx-auto w-full max-w-[var(--shell-max)] lg:pl-[var(--rail)]">
         {/* 进度发丝线：强调色的另一个合法位置（移动端只有它） */}
         <div className="mx-3 h-[3px] rounded-full bg-[var(--muted-strong)] md:hidden" aria-hidden>
           <div className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-150 ease-linear" style={{ width: `${percent}%` }} />
         </div>
 
-        <div className="flex h-[var(--player-h)] items-center gap-3 border-t border-[var(--border)] bg-[var(--surface)] px-4 lg:px-5">
+        <div className="pointer-events-auto flex h-[var(--player-h)] items-center gap-3 border-t border-[var(--border)] bg-[var(--surface)] px-4 lg:px-5">
         <SmartImage
           image={image}
           aspectRatio={1}
